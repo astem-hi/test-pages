@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ART JET 総合在庫管理・メンテナンスツール</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; background: #f4f6f9; color: #333; }
+        header { background: #1a365d; color: white; padding: 15px 20px; font-size: 18px; font-weight: bold; }
+        .tabs { display: flex; background: #2a4365; cursor: pointer; overflow-x: auto; }
+        .tab { padding: 12px 20px; color: #cbd5e0; white-space: nowrap; border-bottom: 3px solid transparent; }
+        .tab.active { color: white; background: #1a365d; border-bottom: 3px solid #63b3ed; font-weight: bold; }
+        .content { display: none; padding: 20px; max-width: 900px; margin: 0 auto; background: white; min-height: 80vh; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+        .content.active { display: block; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #cbd5e0; border-radius: 4px; }
+        button { background: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #2b6cb0; }
+        .preview-box { background: #edf2f7; padding: 15px; border-radius: 4px; margin-top: 10px; white-space: pre-wrap; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+<header>ART JET 大阪在庫管理・メンテナンス総合ツール</header>
+
+<div class="tabs">
+    <div class="tab active" onclick="switchTab(0)">1. 部品棚マップ・確認</div>
+    <div class="tab" onclick="switchTab(1)">2. 出荷依頼・倉庫移動 LINE作成</div>
+    <div class="tab" onclick="switchTab(2)">3. 作業報告 ＆ 在庫使用入力</div>
+    <div class="tab" onclick="switchTab(3)">4. 個人持ち在庫確認</div>
+</div>
+
+<!-- タブ1: 部品棚マップ・確認 -->
+<div class="content active">
+    <h2>部品棚マップ / 在庫保有数確認</h2>
+    <p>既存の在庫棚マップや名古屋TDCの外部確認アプリ（<a href="https://tdc-artjet-stock-mgt.web.app/" target="_blank">TDC Stock Mgmt</a>）との連携エリアです。</p>
+    <!-- 既存の棚マップUIをここに配置 -->
+</div>
+
+<!-- タブ2: 出荷依頼・倉庫移動 LINE作成 -->
+<div class="content">
+    <h2>倉庫移動依頼・直送 LINE作成</h2>
+    <div class="form-group">
+        <label>依頼種別</label>
+        <select id="reqType">
+            <option value="倉庫移動">倉庫移動</option>
+            <option value="お客様直送">お客様直送（受取責任者指定）</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>受取責任者</label>
+        <select id="receiver">
+            <option value="平田">平田</option>
+            <option value="山本">山本</option>
+            <option value="向井">向井</option>
+            <option value="河原">河原</option>
+            <option value="井阪">井阪</option>
+            <option value="松井色素">松井色素</option>
+        </select>
+    </div>
+    <!-- 既存の出荷依頼作成UIをここに統合・拡張 -->
+    <button onclick="alert('出荷依頼を登録しました（サンプル）')">依頼テキスト作成・登録</button>
+</div>
+
+<!-- タブ3: 作業報告 ＆ 在庫使用入力 -->
+<div class="content">
+    <h2>作業報告 ＆ 在庫使用入力</h2>
+    <form id="workLogForm" onsubmit="submitWorkLog(event)">
+        <div class="form-group">
+            <label>担当者</label>
+            <select id="worker" required>
+                <option value="平田">平田</option>
+                <option value="山本">山本</option>
+                <option value="向井">向井</option>
+                <option value="河原">河原</option>
+                <option value="井阪">井阪</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>同行者</label>
+            <input type="text" id="companions" placeholder="例: 松井色素、卓也、藤原、加藤">
+        </div>
+        <div class="form-group">
+            <label>顧客名</label>
+            <input type="text" id="customer" required placeholder="例: 〇〇工業 様">
+        </div>
+        <div class="form-group">
+            <label>機械名</label>
+            <input type="text" id="machine" required placeholder="例: 1号機 ドライヤー">
+        </div>
+        <div class="form-group">
+            <label>作業種別</label>
+            <select id="workType">
+                <option value="通常作業">通常作業</option>
+                <option value="初期不良対応">初期不良対応（※LINE報告から除外）</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>内容・対応（自由記述）</label>
+            <textarea id="content" rows="3" required></textarea>
+        </div>
+        <div class="form-group">
+            <label>使用部品（品番 / 数量 / 外部品フラグなど）</label>
+            <input type="text" id="partId" placeholder="品番 (例: AJ-5001 または 自由入力)">
+            <input type="number" id="partQty" value="1" style="margin-top:5px;">
+        </div>
+        <button type="submit">作業報告を送信して在庫を自動減算</button>
+    </form>
+    <div class="preview-box" id="linePreview">【LINE用プレビュー文章がここに表示されます】</div>
+</div>
+
+<!-- タブ4: 個人持ち在庫確認 -->
+<div class="content">
+    <h2>個人持ち在庫確認</h2>
+    <p>各メンバー（平田、山本、向井、河原、井阪、松井色素）の現在保有している個人在庫の一覧ビューです。</p>
+    <!-- 在庫マトリクス表示エリア -->
+</div>
+
+<script>
+    function switchTab(index) {
+        const tabs = document.querySelectorAll('.tab');
+        const contents = document.querySelectorAll('.content');
+        tabs.forEach((t, i) => {
+            t.classList.toggle('active', i === index);
+            contents[i].classList.toggle('active', i === index);
+        });
+    }
+
+    function submitWorkLog(e) {
+        e.preventDefault();
+        // ここでGASのWebアプリURL（API）に対して fetch() でPOST送信を行います
+        alert("作業報告データの送信テストです。GASのデプロイURLと連携します！");
+    }
+</script>
+
+</body>
+</html>
