@@ -180,7 +180,7 @@
     </div>
     <div class="panel">
       <div class="section-title"><span>検索ヒット・部品一覧</span></div>
-      <div id="mapPartsList" style="max-height:300px; overflow-y:auto;">読み込み中...</div>
+      <div id="mapPartsList" style="max-height:300px; overflow-y:auto;">スプレッドシートから読み込み中...</div>
     </div>
   </div>
 
@@ -297,7 +297,7 @@
             </tr>
           </thead>
           <tbody id="stockTableBody">
-            <tr><td colspan="10" style="text-align:center;">データ読み込み中...</td></tr>
+            <tr><td colspan="10" style="text-align:center;">スプレッドシートから読み込み中...</td></tr>
           </tbody>
         </table>
       </div>
@@ -305,14 +305,12 @@
   </div>
 
   <script>
-    // サンプルデータ（通信エラー回避用）
-    let globalPartsData = [
-      { id: '1', name: 'ベアリング 608ZZ', location: 'B-1-1', stock_osaka: 10, stock_hirata: 5, stock_yamamoto: 2, stock_mukai: 0, stock_isaka: 1, stock_kawahara: 0, stock_matsui: 3 },
-      { id: '2', name: '交換フィルター', location: 'A-1-1', stock_osaka: 20, stock_hirata: 2, stock_yamamoto: 0, stock_mukai: 1, stock_isaka: 0, stock_kawahara: 0, stock_matsui: 0 },
-      { id: '3', name: 'Oリング P-12', location: 'B-3-2', stock_osaka: 50, stock_hirata: 10, stock_yamamoto: 5, stock_mukai: 5, stock_isaka: 2, stock_kawahara: 1, stock_matsui: 4 }
-    ];
+    // ⚠️ ご自身で取得したスプレッドシートのCSV公開URLをここに設定してください
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmwX9ZCKIEMzYwQa2_OXtSk9gPMy6_l_KhmKvDUS8rP-JeiZxCz7nVzo4ZXR8lwGdaM7S-1J4rNyF3/pub?output=csv";
 
-    // タブ切り替え（安全にIDを指定して切り替える方式）
+    let globalPartsData = [];
+
+    // タブ切り替え
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -323,15 +321,108 @@
       if (tabId === 'stock') renderStockTable();
     }
 
-    // 初期化
-    window.addEventListener('DOMContentLoaded', () => {
+    // 初期化 ＆ スプレッドシート読み込み
+    window.addEventListener('DOMContentLoaded', async () => {
       initMapGrid();
-      renderMapList(globalPartsData);
-      renderStockTable();
-      addMoveItemRow();
-      addMachineSection();
       document.getElementById('repDate').valueAsDate = new Date();
+      
+      // スプレッドシートの読み込みを実行
+      await fetchSheetData();
     });
+
+    // スプレッドシート読み込み関数（エラー詳細表示対応）
+    async function fetchSheetData() {
+      const partsListEl = document.getElementById('mapPartsList');
+      const stockBodyEl = document.getElementById('stockTableBody');
+
+      if (SHEET_CSV_URL.includes("YOUR_SHEET_ID_HERE")) {
+        showError("⚠️ SHEET_CSV_URL が設定されていません。コード内のURLを正しいスプレッドシートのCSV公開URLに書き換えてください。");
+        return;
+      }
+
+      try {
+        const response = await fetch(SHEET_CSV_URL);
+        if (!response.ok) {
+          throw new Error(`HTTPエラー! ステータス: ${response.status} (${response.statusText})`);
+        }
+        const text = await response.text();
+        if (text.trim().startsWith("<!DOCTYPE html>")) {
+          throw new Error("取得したデータがHTMLになっています。スプレッドシートの「ウェブに公開」で形式が「CSV」になっているか、リンクが正しいか確認してください。");
+        }
+
+        globalPartsData = parseCSV(text);
+
+        if (globalPartsData.length === 0) {
+          showError("⚠️ データが0件です。スプレッドシートにデータが入力されているか確認してください。");
+          return;
+        }
+
+        // 各種画面の描画を更新
+        renderMapList(globalPartsData);
+        renderStockTable();
+        refreshDynamicSelects();
+
+      } catch (error) {
+        console.error("スプレッドシート読み込み失敗:", error);
+        showError(`❌ 読み込み失敗: ${error.message}`);
+      }
+    }
+
+    function showError(msg) {
+      const errHtml = `<div style="padding:12px; color:#d9534f; background:#f9dede; border-radius:6px; font-size:0.85rem; line-height:1.4;"><b>【エラー詳細】</b><br>${msg}</div>`;
+      document.getElementById('mapPartsList').innerHTML = errHtml;
+      document.getElementById('stockTableBody').innerHTML = `<tr><td colspan="10" style="color:#d9534f; text-align:center; padding:15px;">${msg}</td></tr>`;
+    }
+
+    // CSVパース処理
+    function parseCSV(text) {
+      const lines = text.trim().split(/\r?\n/);
+      if (lines.length <= 1) return [];
+      
+      // ヘッダー行の解析（前後の空白やダブルクォーテーションを除去）
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+      const items = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const rowString = lines[i];
+        if (!rowString.trim()) continue;
+
+        // カンマ区切りの簡易分解（ダブルクォーテーション内のカンマに対応）
+        const v = rowString.split(',').map(val => val.trim().replace(/^"|"$/g, ''));
+        const obj = {};
+        headers.forEach((h, idx) => {
+          obj[h] = v[idx] || '';
+        });
+
+        // データのマッピング（スプレッドシートの列名が日本語・英語どちらでも対応できるように紐付け）
+        items.push({
+          id: obj['id'] || obj['品番'] || i,
+          name: obj['name'] || obj['品名'] || '名称不明',
+          location: obj['location'] || obj['棚番号'] || '',
+          stock_osaka: Number(obj['stock_osaka'] || obj['大阪事務所在庫数'] || 0),
+          stock_hirata: Number(obj['stock_hirata'] || obj['平田 個人在庫数'] || obj['平田'] || 0),
+          stock_yamamoto: Number(obj['stock_yamamoto'] || obj['山本 個人在庫数'] || obj['山本'] || 0),
+          stock_mukai: Number(obj['stock_mukai'] || obj['向井 個人在庫数'] || obj['向井'] || 0),
+          stock_isaka: Number(obj['stock_isaka'] || obj['井阪 個人在庫数'] || obj['井阪'] || 0),
+          stock_kawahara: Number(obj['stock_kawahara'] || obj['河原 個人在庫数'] || obj['河原'] || 0),
+          stock_matsui: Number(obj['stock_matsui'] || obj['松井色素 個人在庫数'] || obj['松井色素'] || obj['松井'] || 0)
+        });
+      }
+      return items;
+    }
+
+    // フォーム内のプルダウンを動的に最新データで更新
+    function refreshDynamicSelects() {
+      // 倉庫移動タブの商品セレクトを更新
+      const moveContainer = document.getElementById('moveItemsContainer');
+      moveContainer.innerHTML = '';
+      addMoveItemRow();
+
+      // 作業報告タブの機器セクションを再構築
+      const repContainer = document.getElementById('machineSectionsContainer');
+      repContainer.innerHTML = '';
+      addMachineSection();
+    }
 
     // 棚マップ生成
     function initMapGrid() {
@@ -374,7 +465,7 @@
 
     function renderMapList(items) {
       const container = document.getElementById('mapPartsList');
-      container.innerHTML = items.length === 0 ? '<div style="padding:10px; color:#888;">該当なし</div>' : '';
+      container.innerHTML = items.length === 0 ? '<div style="padding:10px; color:#888;">該当する部品がありません</div>' : '';
       items.forEach(item => {
         const div = document.createElement('div');
         div.style.cssText = "padding:6px; border-bottom:1px solid #eee; cursor:pointer;";
@@ -555,9 +646,14 @@
       const tbody = document.getElementById('stockTableBody');
       tbody.innerHTML = '';
 
+      if (globalPartsData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#888;">データが読み込まれていません（スプレッドシートの接続を確認してください）</td></tr>`;
+        return;
+      }
+
       const filtered = globalPartsData.filter(p => !kw || p.name.toLowerCase().includes(kw));
       if(filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">データがありません</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">該当する部品がありません</td></tr>`;
         return;
       }
 
