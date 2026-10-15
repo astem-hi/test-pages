@@ -246,12 +246,12 @@
 
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
         <div><label>処理日</label><input type="date" id="repDate"></div>
-        <div><label>報告者</label><select id="repReporter"><option value="平田一朗">平田一朗</option><option value="山本">山本</option><option value="向井">向井</option><option value="河原">河原</option><option value="井阪">井阪</option><option value="松井色素">松井色素</option></select></div>
+        <div><label>報告者</label><select id="repReporter"><option value="平田">平田</option><option value="山本">山本</option><option value="向井">向井</option><option value="河原">河原</option><option value="井阪">井阪</option><option value="松井色素">松井色素</option></select></div>
       </div>
 
       <label>同行メンバー (複数選択可)</label>
       <div id="repCompanions" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; font-size:0.85rem;">
-        <label><input type="checkbox" value="平田一朗"> 平田一朗</label>
+        <label><input type="checkbox" value="平田"> 平田</label>
         <label><input type="checkbox" value="山本"> 山本</label>
         <label><input type="checkbox" value="向井"> 向井</label>
         <label><input type="checkbox" value="河原"> 河原</label>
@@ -310,7 +310,7 @@
 
   <script>
     // ⚠️ スプレッドシートのCSV公開URL
-    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/YOUR_SHEET_ID_HERE/pub?output=csv";
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmwX9ZCKIEMzYwQa2_OXtSk9gPMy6_l_KhmKvDUS8rP-JeiZxCz7nVzo4ZXR8lwGdaM7S-1J4rNyF3/pub?output=csv";
 
     // サンプルデータ（初期・フォールバック用）
     let globalPartsData = [
