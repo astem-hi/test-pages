@@ -117,6 +117,7 @@
     .grid-a { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
     .grid-b { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
     .grid-c-bot { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; }
+    .grid-d { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
     .cell {
       background: #fff;
       border: 1px solid #adb5bd;
@@ -162,7 +163,7 @@
   <div id="tab-map" class="tab-content active">
     <div class="panel">
       <div class="section-title"><span>部品検索・棚マップ</span></div>
-      <input type="text" id="mapSearchInput" placeholder="🔍 部品名・型番・棚番号を曖昧検索..." oninput="handleMapSearch()">
+      <input type="text" id="mapSearchInput" placeholder="🔍 品番・品名・棚番号を曖昧検索..." oninput="handleMapSearch()">
       
       <div class="shelf-group">
         <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 A】大型コンテナ (2段×4列)</div>
@@ -176,6 +177,10 @@
         <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 C】青ボックス</div>
         <div id="mapShelfCTop" style="margin-bottom:4px;"></div>
         <div class="grid-c-bot" id="mapShelfCBottom"></div>
+      </div>
+      <div class="shelf-group">
+        <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 D】棚D (D-1～D-3)</div>
+        <div class="grid-d" id="mapShelfD"></div>
       </div>
     </div>
     <div class="panel">
@@ -279,12 +284,13 @@
         <span>👤 個人・拠点別在庫一覧</span>
         <button class="btn btn-secondary btn-sm" onclick="downloadInventoryCSV()">📥 棚卸CSVダウンロード</button>
       </div>
-      <input type="text" id="stockSearchInput" placeholder="🔍 部品名で在庫を絞り込み..." oninput="renderStockTable()">
+      <input type="text" id="stockSearchInput" placeholder="🔍 品番または品名で在庫を絞り込み..." oninput="renderStockTable()">
       <div style="overflow-x: auto; max-height: 400px;">
         <table id="stockTable">
           <thead>
             <tr>
-              <th>部品名</th>
+              <th>品番</th>
+              <th>品名</th>
               <th>棚番</th>
               <th>大阪</th>
               <th>平田</th>
@@ -297,7 +303,7 @@
             </tr>
           </thead>
           <tbody id="stockTableBody">
-            <tr><td colspan="10" style="text-align:center;">スプレッドシートから読み込み中...</td></tr>
+            <tr><td colspan="11" style="text-align:center;">スプレッドシートから読み込み中...</td></tr>
           </tbody>
         </table>
       </div>
@@ -305,12 +311,12 @@
   </div>
 
   <script>
-    // ⚠️ ご自身で取得したスプレッドシートのCSV公開URLをここに設定してください
+    // ⚠️ 指定いただいたスプレッドシートのCSV公開URLを組み込み済み
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmwX9ZCKIEMzYwQa2_OXtSk9gPMy6_l_KhmKvDUS8rP-JeiZxCz7nVzo4ZXR8lwGdaM7S-1J4rNyF3/pub?output=csv";
 
     let globalPartsData = [];
 
-    // タブ切り替え
+    // タブ切り替え（安全にIDを指定して切り替える方式）
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -325,21 +331,11 @@
     window.addEventListener('DOMContentLoaded', async () => {
       initMapGrid();
       document.getElementById('repDate').valueAsDate = new Date();
-      
-      // スプレッドシートの読み込みを実行
       await fetchSheetData();
     });
 
     // スプレッドシート読み込み関数（エラー詳細表示対応）
     async function fetchSheetData() {
-      const partsListEl = document.getElementById('mapPartsList');
-      const stockBodyEl = document.getElementById('stockTableBody');
-
-      if (SHEET_CSV_URL.includes("YOUR_SHEET_ID_HERE")) {
-        showError("⚠️ SHEET_CSV_URL が設定されていません。コード内のURLを正しいスプレッドシートのCSV公開URLに書き換えてください。");
-        return;
-      }
-
       try {
         const response = await fetch(SHEET_CSV_URL);
         if (!response.ok) {
@@ -347,7 +343,7 @@
         }
         const text = await response.text();
         if (text.trim().startsWith("<!DOCTYPE html>")) {
-          throw new Error("取得したデータがHTMLになっています。スプレッドシートの「ウェブに公開」で形式が「CSV」になっているか、リンクが正しいか確認してください。");
+          throw new Error("取得したデータがHTMLになっています。スプレッドシートの「ウェブに公開」で形式が「CSV」になっているか確認してください。");
         }
 
         globalPartsData = parseCSV(text);
@@ -357,7 +353,6 @@
           return;
         }
 
-        // 各種画面の描画を更新
         renderMapList(globalPartsData);
         renderStockTable();
         refreshDynamicSelects();
@@ -371,15 +366,14 @@
     function showError(msg) {
       const errHtml = `<div style="padding:12px; color:#d9534f; background:#f9dede; border-radius:6px; font-size:0.85rem; line-height:1.4;"><b>【エラー詳細】</b><br>${msg}</div>`;
       document.getElementById('mapPartsList').innerHTML = errHtml;
-      document.getElementById('stockTableBody').innerHTML = `<tr><td colspan="10" style="color:#d9534f; text-align:center; padding:15px;">${msg}</td></tr>`;
+      document.getElementById('stockTableBody').innerHTML = `<tr><td colspan="11" style="color:#d9534f; text-align:center; padding:15px;">${msg}</td></tr>`;
     }
 
-    // CSVパース処理
+    // CSVパース処理（品番・品名対応）
     function parseCSV(text) {
       const lines = text.trim().split(/\r?\n/);
       if (lines.length <= 1) return [];
       
-      // ヘッダー行の解析（前後の空白やダブルクォーテーションを除去）
       const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
       const items = [];
 
@@ -387,54 +381,58 @@
         const rowString = lines[i];
         if (!rowString.trim()) continue;
 
-        // カンマ区切りの簡易分解（ダブルクォーテーション内のカンマに対応）
         const v = rowString.split(',').map(val => val.trim().replace(/^"|"$/g, ''));
         const obj = {};
         headers.forEach((h, idx) => {
           obj[h] = v[idx] || '';
         });
 
-        // データのマッピング（スプレッドシートの列名が日本語・英語どちらでも対応できるように紐付け）
         items.push({
-          id: obj['id'] || obj['品番'] || i,
+          id: obj['id'] || obj['品番'] || ('P-' + i),
           name: obj['name'] || obj['品名'] || '名称不明',
           location: obj['location'] || obj['棚番号'] || '',
           stock_osaka: Number(obj['stock_osaka'] || obj['大阪事務所在庫数'] || 0),
-          stock_hirata: Number(obj['stock_hirata'] || obj['平田 個人在庫数'] || obj['平田'] || 0),
-          stock_yamamoto: Number(obj['stock_yamamoto'] || obj['山本 個人在庫数'] || obj['山本'] || 0),
-          stock_mukai: Number(obj['stock_mukai'] || obj['向井 個人在庫数'] || obj['向井'] || 0),
-          stock_isaka: Number(obj['stock_isaka'] || obj['井阪 個人在庫数'] || obj['井阪'] || 0),
-          stock_kawahara: Number(obj['stock_kawahara'] || obj['河原 個人在庫数'] || obj['河原'] || 0),
-          stock_matsui: Number(obj['stock_matsui'] || obj['松井色素 個人在庫数'] || obj['松井色素'] || obj['松井'] || 0)
+          stock_hirata: Number(obj['stock_hirata'] || obj['平田'] || 0),
+          stock_yamamoto: Number(obj['stock_yamamoto'] || obj['山本'] || 0),
+          stock_mukai: Number(obj['stock_mukai'] || obj['向井'] || 0),
+          stock_isaka: Number(obj['stock_isaka'] || obj['井阪'] || 0),
+          stock_kawahara: Number(obj['stock_kawahara'] || obj['河原'] || 0),
+          stock_matsui: Number(obj['stock_matsui'] || obj['松井色素'] || 0)
         });
       }
       return items;
     }
 
-    // フォーム内のプルダウンを動的に最新データで更新
     function refreshDynamicSelects() {
-      // 倉庫移動タブの商品セレクトを更新
       const moveContainer = document.getElementById('moveItemsContainer');
       moveContainer.innerHTML = '';
       addMoveItemRow();
 
-      // 作業報告タブの機器セクションを再構築
       const repContainer = document.getElementById('machineSectionsContainer');
       repContainer.innerHTML = '';
       addMachineSection();
     }
 
-    // 棚マップ生成
+    // 棚マップ生成（C-1-2、棚D：D-1〜D-3を追加）
     function initMapGrid() {
       const a = document.getElementById('mapShelfA');
       for(let r=1; r<=2; r++) for(let c=1; c<=4; c++) a.appendChild(createCell(`A-${r}-${c}`));
+      
       const b = document.getElementById('mapShelfB');
       for(let r=1; r<=6; r++) for(let c=1; c<=5; c++) b.appendChild(createCell(`B-${r}-${c}`));
+      
       document.getElementById('mapShelfCTop').appendChild(createCell('C-1-1'));
       const cBot = document.getElementById('mapShelfCBottom');
+      cBot.appendChild(createCell('C-1-2'));
       cBot.appendChild(createCell('C-2-1'));
       cBot.appendChild(createCell('C-2-2'));
+
+      const d = document.getElementById('mapShelfD');
+      for(let i=1; i<=3; i++) {
+        d.appendChild(createCell(`D-${i}`));
+      }
     }
+
     function createCell(id) {
       const d = document.createElement('div');
       d.className = 'cell'; d.id = 'MAP-' + id; d.innerText = id;
@@ -442,12 +440,13 @@
       return d;
     }
 
-    // 曖昧・部分検索 (マップ)
+    // 曖昧・部分検索（品番・品名・棚番号に対応）
     function handleMapSearch() {
       const kw = document.getElementById('mapSearchInput').value.trim().toLowerCase();
       document.querySelectorAll('.cell.active').forEach(el => el.classList.remove('active'));
       
       const filtered = globalPartsData.filter(p => 
+        (p.id && p.id.toLowerCase().includes(kw)) ||
         (p.name && p.name.toLowerCase().includes(kw)) || 
         (p.location && p.location.toLowerCase().includes(kw))
       );
@@ -463,13 +462,14 @@
       });
     }
 
+    // リスト表示：「品番 品名」の形式に変更
     function renderMapList(items) {
       const container = document.getElementById('mapPartsList');
       container.innerHTML = items.length === 0 ? '<div style="padding:10px; color:#888;">該当する部品がありません</div>' : '';
       items.forEach(item => {
         const div = document.createElement('div');
         div.style.cssText = "padding:6px; border-bottom:1px solid #eee; cursor:pointer;";
-        div.innerHTML = `<b>${item.name}</b> <span style="font-size:0.8rem; color:#666;">(棚: ${item.location})</span>`;
+        div.innerHTML = `<b>${item.id} ${item.name}</b> <span style="font-size:0.8rem; color:#666;">(棚: ${item.location})</span>`;
         div.onclick = () => {
           document.getElementById('mapSearchInput').value = item.location;
           handleMapSearch();
@@ -485,7 +485,7 @@
       row.className = 'dynamic-row';
       row.innerHTML = `
         <select style="flex:2;" class="move-part-select">
-          ${globalPartsData.map(p => `<option value="${p.name}">${p.name} (棚:${p.location})</option>`).join('')}
+          ${globalPartsData.map(p => `<option value="${p.id} ${p.name}">${p.id} ${p.name} (棚:${p.location})</option>`).join('')}
         </select>
         <input type="number" style="flex:1;" placeholder="数量" value="1" min="1" class="move-part-qty">
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateMoveText();">削除</button>
@@ -583,7 +583,7 @@
       row.className = 'dynamic-row';
       row.innerHTML = `
         <select style="flex:2;" class="rep-part-select" onchange="generateReportText()">
-          ${globalPartsData.map(p => `<option value="${p.name}">${p.name}</option>`).join('')}
+          ${globalPartsData.map(p => `<option value="${p.id}${p.name}">${p.id}${p.name}</option>`).join('')}
         </select>
         <input type="number" style="flex:1;" value="1" min="1" class="rep-part-qty" oninput="generateReportText()">
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
@@ -647,13 +647,14 @@
       tbody.innerHTML = '';
 
       if (globalPartsData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#888;">データが読み込まれていません（スプレッドシートの接続を確認してください）</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:#888;">データが読み込まれていません（スプレッドシートの接続を確認してください）</td></tr>`;
         return;
       }
 
-      const filtered = globalPartsData.filter(p => !kw || p.name.toLowerCase().includes(kw));
+      // 検索時に品番または品名でヒットするように変更
+      const filtered = globalPartsData.filter(p => !kw || p.id.toLowerCase().includes(kw) || p.name.toLowerCase().includes(kw));
       if(filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">該当する部品がありません</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;">該当する部品がありません</td></tr>`;
         return;
       }
 
@@ -661,6 +662,7 @@
         const total = (Number(p.stock_osaka)||0) + (Number(p.stock_hirata)||0) + (Number(p.stock_yamamoto)||0) + (Number(p.stock_mukai)||0) + (Number(p.stock_isaka)||0) + (Number(p.stock_kawahara)||0) + (Number(p.stock_matsui)||0);
         const tr = document.createElement('tr');
         tr.innerHTML = `
+          <td><b>${p.id}</b></td>
           <td><b>${p.name}</b></td>
           <td>${p.location}</td>
           <td>${p.stock_osaka}</td>
@@ -679,7 +681,7 @@
     function downloadInventoryCSV() {
       let csv = "id,name,location,stock_osaka,stock_hirata,stock_yamamoto,stock_mukai,stock_isaka,stock_kawahara,stock_matsui\n";
       globalPartsData.forEach(p => {
-        csv += `${p.id || ''},"${p.name}","${p.location}",${p.stock_osaka},${p.stock_hirata},${p.stock_yamamoto},${p.stock_mukai},${p.stock_isaka},${p.stock_kawahara},${p.stock_matsui}\n`;
+        csv += `"${p.id}","${p.name}","${p.location}",${p.stock_osaka},${p.stock_hirata},${p.stock_yamamoto},${p.stock_mukai},${p.stock_isaka},${p.stock_kawahara},${p.stock_matsui}\n`;
       });
       const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
