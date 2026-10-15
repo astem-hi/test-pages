@@ -97,7 +97,7 @@
     }
     .btn {
       background: var(--accent-color);
-      color: #white;
+      color: #fff;
       border: none;
       padding: 10px 16px;
       border-radius: 6px;
@@ -152,10 +152,10 @@
 
   <!-- タブ切り替えメニュー -->
   <div class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('map')">📍 棚マップ</button>
-    <button class="tab-btn" onclick="switchTab('move')">🚚 倉庫移動</button>
-    <button class="tab-btn" onclick="switchTab('report')">📝 作業報告</button>
-    <button class="tab-btn" onclick="switchTab('stock')">👤 個人在庫</button>
+    <button class="tab-btn active" id="btn-map" onclick="switchTab('map')">📍 棚マップ</button>
+    <button class="tab-btn" id="btn-move" onclick="switchTab('move')">🚚 倉庫移動</button>
+    <button class="tab-btn" id="btn-report" onclick="switchTab('report')">📝 作業報告</button>
+    <button class="tab-btn" id="btn-stock" onclick="switchTab('stock')">👤 個人在庫</button>
   </div>
 
   <!-- ================= タブ1: 棚マップ ================= -->
@@ -199,9 +199,7 @@
       </select>
 
       <label>商品・数量</label>
-      <div id="moveItemsContainer">
-        <!-- 動的追加行 -->
-      </div>
+      <div id="moveItemsContainer"></div>
       <button class="btn btn-secondary btn-sm" onclick="addMoveItemRow()" style="margin-bottom:10px;">＋ 商品行を追加</button>
 
       <label>出荷日</label>
@@ -246,12 +244,12 @@
 
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
         <div><label>処理日</label><input type="date" id="repDate"></div>
-        <div><label>報告者</label><select id="repReporter"><option value="平田">平田</option><option value="山本">山本</option><option value="向井">向井</option><option value="河原">河原</option><option value="井阪">井阪</option><option value="松井色素">松井色素</option></select></div>
+        <div><label>報告者</label><select id="repReporter"><option value="平田一朗">平田一朗</option><option value="山本">山本</option><option value="向井">向井</option><option value="河原">河原</option><option value="井阪">井阪</option><option value="松井色素">松井色素</option></select></div>
       </div>
 
       <label>同行メンバー (複数選択可)</label>
       <div id="repCompanions" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; font-size:0.85rem;">
-        <label><input type="checkbox" value="平田"> 平田</label>
+        <label><input type="checkbox" value="平田一朗"> 平田一朗</label>
         <label><input type="checkbox" value="山本"> 山本</label>
         <label><input type="checkbox" value="向井"> 向井</label>
         <label><input type="checkbox" value="河原"> 河原</label>
@@ -262,9 +260,7 @@
       <label>顧客名</label>
       <input type="text" id="repCustomer" placeholder="顧客名を入力" oninput="generateReportText()">
 
-      <div id="machineSectionsContainer">
-        <!-- 機器別セクションがここに入る -->
-      </div>
+      <div id="machineSectionsContainer"></div>
       <button class="btn btn-secondary btn-sm" onclick="addMachineSection()" style="margin-bottom:10px;">＋ 別の機器の作業を追加</button>
 
       <label>全体の備考・連絡事項</label>
@@ -309,29 +305,29 @@
   </div>
 
   <script>
-    // ⚠️ スプレッドシートのCSV公開URL
-    const SHEET_CSV_URL = "https://example.com/dummy.csv";
-
-    // サンプルデータ（初期・フォールバック用）
+    // サンプルデータ（通信エラー回避用）
     let globalPartsData = [
       { id: '1', name: 'ベアリング 608ZZ', location: 'B-1-1', stock_osaka: 10, stock_hirata: 5, stock_yamamoto: 2, stock_mukai: 0, stock_isaka: 1, stock_kawahara: 0, stock_matsui: 3 },
       { id: '2', name: '交換フィルター', location: 'A-1-1', stock_osaka: 20, stock_hirata: 2, stock_yamamoto: 0, stock_mukai: 1, stock_isaka: 0, stock_kawahara: 0, stock_matsui: 0 },
       { id: '3', name: 'Oリング P-12', location: 'B-3-2', stock_osaka: 50, stock_hirata: 10, stock_yamamoto: 5, stock_mukai: 5, stock_isaka: 2, stock_kawahara: 1, stock_matsui: 4 }
     ];
 
-    // タブ切り替え
+    // タブ切り替え（安全にIDを指定して切り替える方式）
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      
       document.getElementById('tab-' + tabId).classList.add('active');
-      event.currentTarget.classList.add('active');
+      document.getElementById('btn-' + tabId).classList.add('active');
+      
       if (tabId === 'stock') renderStockTable();
     }
 
     // 初期化
     window.addEventListener('DOMContentLoaded', () => {
       initMapGrid();
-      fetchSheetData();
+      renderMapList(globalPartsData);
+      renderStockTable();
       addMoveItemRow();
       addMachineSection();
       document.getElementById('repDate').valueAsDate = new Date();
@@ -353,41 +349,6 @@
       d.className = 'cell'; d.id = 'MAP-' + id; d.innerText = id;
       d.onclick = () => { document.getElementById('mapSearchInput').value = id; handleMapSearch(); };
       return d;
-    }
-
-    // スプレッドシート読み込み
-    async function fetchSheetData() {
-      if (!SHEET_CSV_URL.includes("YOUR_SHEET_ID_HERE")) {
-        try {
-          const res = await fetch(SHEET_CSV_URL);
-          const text = await res.text();
-          globalPartsData = parseCSV(text);
-        } catch(e) { console.error(e); }
-      }
-      renderMapList(globalPartsData);
-      renderStockTable();
-    }
-
-    function parseCSV(text) {
-      const lines = text.trim().split(/\r?\n/);
-      if(lines.length <= 1) return globalPartsData;
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-      const items = [];
-      for(let i=1; i<lines.length; i++) {
-        const v = lines[i].split(',').map(val => val.trim().replace(/^"|"$/g, ''));
-        const obj = {};
-        headers.forEach((h, idx) => obj[h] = v[idx] || '');
-        // 個人在庫のデフォルト値補正
-        obj.stock_osaka = Number(obj.stock_osaka || 10);
-        obj.stock_hirata = Number(obj.stock_hirata || 0);
-        obj.stock_yamamoto = Number(obj.stock_yamamoto || 0);
-        obj.stock_mukai = Number(obj.stock_mukai || 0);
-        obj.stock_isaka = Number(obj.stock_isaka || 0);
-        obj.stock_kawahara = Number(obj.stock_kawahara || 0);
-        obj.stock_matsui = Number(obj.stock_matsui || 0);
-        items.push(obj);
-      }
-      return items;
     }
 
     // 曖昧・部分検索 (マップ)
@@ -624,7 +585,7 @@
       globalPartsData.forEach(p => {
         csv += `${p.id || ''},"${p.name}","${p.location}",${p.stock_osaka},${p.stock_hirata},${p.stock_yamamoto},${p.stock_mukai},${p.stock_isaka},${p.stock_kawahara},${p.stock_matsui}\n`;
       });
-      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0BF]), csv], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
