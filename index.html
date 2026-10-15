@@ -116,8 +116,8 @@
     .shelf-group { margin-bottom: 12px; background: #fafafa; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; }
     .grid-a { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
     .grid-b { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
-    .grid-c-bot { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; }
-    .grid-d { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .grid-c { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; }
+    .grid-d { display: grid; grid-template-columns: 1fr; gap: 4px; }
     .cell {
       background: #fff;
       border: 1px solid #adb5bd;
@@ -145,6 +145,15 @@
     
     .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
     .preview-box { background: #e9ecef; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; margin-top: 8px; }
+
+    /* 検索付きパーツ選択用コンポーネント */
+    .part-search-container { position: relative; flex: 2; }
+    .part-dropdown-list {
+      position: absolute; top: 100%; left: 0; width: 100%; max-height: 150px; overflow-y: auto;
+      background: #fff; border: 1px solid var(--border-color); border-radius: 4px; z-index: 100; display: none;
+    }
+    .part-dropdown-item { padding: 6px 8px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #f1f3f5; }
+    .part-dropdown-item:hover { background: #f8f9fa; }
   </style>
 </head>
 <body>
@@ -174,12 +183,12 @@
         <div class="grid-b" id="mapShelfB"></div>
       </div>
       <div class="shelf-group">
-        <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 C】青ボックス</div>
-        <div id="mapShelfCTop" style="margin-bottom:4px;"></div>
-        <div class="grid-c-bot" id="mapShelfCBottom"></div>
+        <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 C】青ボックス (上:C-1-1/C-1-2, 下:C-2-1/C-2-2)</div>
+        <div class="grid-c" id="mapShelfCTop" style="margin-bottom:4px;"></div>
+        <div class="grid-c" id="mapShelfCBottom"></div>
       </div>
       <div class="shelf-group">
-        <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 D】棚D (D-1～D-3)</div>
+        <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【キャビネット】棚D (D-1～D-3)</div>
         <div class="grid-d" id="mapShelfD"></div>
       </div>
     </div>
@@ -195,7 +204,7 @@
       <div class="section-title"><span>🚚 倉庫移動依頼フォーム</span></div>
       
       <label>依頼種別</label>
-      <select id="moveType">
+      <select id="moveType" onchange="generateMoveText()">
         <option value="倉庫移動">倉庫移動</option>
         <option value="通常販売で出荷（大阪倉庫へ影響なし）">通常販売で出荷（大阪倉庫へは影響なし）</option>
         <option value="大阪事務所在庫から発送（部品移動のみ）">大阪事務所在庫から発送（部品移動のみ）</option>
@@ -203,7 +212,7 @@
         <option value="ヘッドクリーナー在庫落とし（大阪倉庫へ影響なし）">ヘッドクリーナー在庫落とし（大阪倉庫へは影響なし）</option>
       </select>
 
-      <label>商品・数量</label>
+      <label>商品・数量（検索対応）</label>
       <div id="moveItemsContainer"></div>
       <button class="btn btn-secondary btn-sm" onclick="addMoveItemRow()" style="margin-bottom:10px;">＋ 商品行を追加</button>
 
@@ -212,14 +221,14 @@
         <option value="本日">本日</option>
         <option value="日付指定">日付指定</option>
       </select>
-      <input type="text" id="moveShippingCustom" placeholder="例: 10月15日(木)" style="display:none;">
+      <input type="text" id="moveShippingCustom" placeholder="例: 10月15日(木)" style="display:none;" oninput="generateMoveText()">
 
       <label>到着希望</label>
       <select id="moveArrivalDate" onchange="toggleCustomDate('moveArrivalDate', 'moveArrivalCustom')">
         <option value="明日AM">明日AM</option>
         <option value="日付指定">日付指定</option>
       </select>
-      <input type="text" id="moveArrivalCustom" placeholder="例: 10月16日(金) 午後" style="display:none;">
+      <input type="text" id="moveArrivalCustom" placeholder="例: 10月16日(金) 午後" style="display:none;" oninput="generateMoveText()">
 
       <label>送り先</label>
       <select id="moveDestType" onchange="updateMoveDest()">
@@ -311,12 +320,11 @@
   </div>
 
   <script>
-    // ⚠️ 指定いただいたスプレッドシートのCSV公開URLを組み込み済み
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmwX9ZCKIEMzYwQa2_OXtSk9gPMy6_l_KhmKvDUS8rP-JeiZxCz7nVzo4ZXR8lwGdaM7S-1J4rNyF3/pub?output=csv";
 
     let globalPartsData = [];
 
-    // タブ切り替え（安全にIDを指定して切り替える方式）
+    // タブ切り替え
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -334,22 +342,18 @@
       await fetchSheetData();
     });
 
-    // スプレッドシート読み込み関数（エラー詳細表示対応）
     async function fetchSheetData() {
       try {
         const response = await fetch(SHEET_CSV_URL);
-        if (!response.ok) {
-          throw new Error(`HTTPエラー! ステータス: ${response.status} (${response.statusText})`);
-        }
+        if (!response.ok) throw new Error(`HTTPエラー! ステータス: ${response.status}`);
         const text = await response.text();
         if (text.trim().startsWith("<!DOCTYPE html>")) {
-          throw new Error("取得したデータがHTMLになっています。スプレッドシートの「ウェブに公開」で形式が「CSV」になっているか確認してください。");
+          throw new Error("取得したデータがHTMLになっています。スプレッドシートの「ウェブに公開」形式を確認してください。");
         }
 
         globalPartsData = parseCSV(text);
-
         if (globalPartsData.length === 0) {
-          showError("⚠️ データが0件です。スプレッドシートにデータが入力されているか確認してください。");
+          showError("⚠️ データが0件です。");
           return;
         }
 
@@ -358,18 +362,16 @@
         refreshDynamicSelects();
 
       } catch (error) {
-        console.error("スプレッドシート読み込み失敗:", error);
+        console.error("読み込み失敗:", error);
         showError(`❌ 読み込み失敗: ${error.message}`);
       }
     }
 
     function showError(msg) {
-      const errHtml = `<div style="padding:12px; color:#d9534f; background:#f9dede; border-radius:6px; font-size:0.85rem; line-height:1.4;"><b>【エラー詳細】</b><br>${msg}</div>`;
-      document.getElementById('mapPartsList').innerHTML = errHtml;
-      document.getElementById('stockTableBody').innerHTML = `<tr><td colspan="11" style="color:#d9534f; text-align:center; padding:15px;">${msg}</td></tr>`;
+      document.getElementById('mapPartsList').innerHTML = `<div style="color:#d9534f;">${msg}</div>`;
+      document.getElementById('stockTableBody').innerHTML = `<tr><td colspan="11" style="color:#d9534f; text-align:center;">${msg}</td></tr>`;
     }
 
-    // CSVパース処理（品番・品名対応）
     function parseCSV(text) {
       const lines = text.trim().split(/\r?\n/);
       if (lines.length <= 1) return [];
@@ -383,9 +385,7 @@
 
         const v = rowString.split(',').map(val => val.trim().replace(/^"|"$/g, ''));
         const obj = {};
-        headers.forEach((h, idx) => {
-          obj[h] = v[idx] || '';
-        });
+        headers.forEach((h, idx) => { obj[h] = v[idx] || ''; });
 
         items.push({
           id: obj['id'] || obj['品番'] || ('P-' + i),
@@ -413,7 +413,26 @@
       addMachineSection();
     }
 
-    // 棚マップ生成（C-1-2、棚D：D-1〜D-3を追加）
+    // ── カタカナの全角半角正規化＆大文字小文字無視の検索補助 ──
+    function normalizeSearchStr(str) {
+      if (!str) return "";
+      return str.toLowerCase()
+        // 全角カタカナを半角カタカナに変換して統一
+        .replace(/[\u30a1-\u30f6]/s, m => String.fromCharCode(m.charCodeAt(0) - 0x60f0))
+        // 半角カタカナを全角カタカナに統一する場合は両方小文字かつnormalizeなどでも対応可能ですが
+        // シンプルに全角→半角またはその逆の相互マッチ用変換
+        .replace(/[ァ-ン]/g, s => String.fromCharCode(s.charCodeAt(0) - 0x60F0));
+    }
+
+    // より確実な全角・半角カナ吸収マッチ関数
+    function isMatched(target, query) {
+      if (!target || !query) return false;
+      const t = normalizeSearchStr(target);
+      const q = normalizeSearchStr(query);
+      return t.includes(q) || target.toLowerCase().includes(query.toLowerCase());
+    }
+
+    // 棚マップ生成（棚C: C-1-1/C-1-2横並び、C-2-1/C-2-2横並び / 棚D: D-1〜D-3縦並び）
     function initMapGrid() {
       const a = document.getElementById('mapShelfA');
       for(let r=1; r<=2; r++) for(let c=1; c<=4; c++) a.appendChild(createCell(`A-${r}-${c}`));
@@ -421,9 +440,11 @@
       const b = document.getElementById('mapShelfB');
       for(let r=1; r<=6; r++) for(let c=1; c<=5; c++) b.appendChild(createCell(`B-${r}-${c}`));
       
-      document.getElementById('mapShelfCTop').appendChild(createCell('C-1-1'));
+      const cTop = document.getElementById('mapShelfCTop');
+      cTop.appendChild(createCell('C-1-1'));
+      cTop.appendChild(createCell('C-1-2'));
+
       const cBot = document.getElementById('mapShelfCBottom');
-      cBot.appendChild(createCell('C-1-2'));
       cBot.appendChild(createCell('C-2-1'));
       cBot.appendChild(createCell('C-2-2'));
 
@@ -440,15 +461,13 @@
       return d;
     }
 
-    // 曖昧・部分検索（品番・品名・棚番号に対応）
+    // 曖昧検索（品番・品名・棚番号 ＋ カタカナ全半角対応）
     function handleMapSearch() {
-      const kw = document.getElementById('mapSearchInput').value.trim().toLowerCase();
+      const kw = document.getElementById('mapSearchInput').value.trim();
       document.querySelectorAll('.cell.active').forEach(el => el.classList.remove('active'));
       
       const filtered = globalPartsData.filter(p => 
-        (p.id && p.id.toLowerCase().includes(kw)) ||
-        (p.name && p.name.toLowerCase().includes(kw)) || 
-        (p.location && p.location.toLowerCase().includes(kw))
+        isMatched(p.id, kw) || isMatched(p.name, kw) || isMatched(p.location, kw)
       );
       renderMapList(filtered);
 
@@ -462,7 +481,7 @@
       });
     }
 
-    // リスト表示：「品番 品名」の形式に変更
+    // リスト表示：「品番 品名」（半角スペース）
     function renderMapList(items) {
       const container = document.getElementById('mapPartsList');
       container.innerHTML = items.length === 0 ? '<div style="padding:10px; color:#888;">該当する部品がありません</div>' : '';
@@ -478,21 +497,55 @@
       });
     }
 
-    // ================= 倉庫移動タブ関連 =================
+    // ================= 倉庫移動タブ関連（検索方式・棚番号非表示） =================
     function addMoveItemRow() {
       const c = document.getElementById('moveItemsContainer');
       const row = document.createElement('div');
       row.className = 'dynamic-row';
       row.innerHTML = `
-        <select style="flex:2;" class="move-part-select">
-          ${globalPartsData.map(p => `<option value="${p.id} ${p.name}">${p.id} ${p.name} (棚:${p.location})</option>`).join('')}
-        </select>
-        <input type="number" style="flex:1;" placeholder="数量" value="1" min="1" class="move-part-qty">
+        <div class="part-search-container" style="flex:2;">
+          <input type="text" class="move-part-search" placeholder="🔍 品番・品名で検索..." oninput="filterMoveDropdown(this)" onfocus="showMoveDropdown(this)">
+          <div class="part-dropdown-list"></div>
+        </div>
+        <input type="number" style="flex:1;" placeholder="数量" value="1" min="1" class="move-part-qty" oninput="generateMoveText()">
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateMoveText();">削除</button>
       `;
-      row.querySelectorAll('select, input').forEach(el => el.oninput = generateMoveText);
       c.appendChild(row);
+      populateMoveDropdown(row.querySelector('.part-dropdown-list'), '');
       generateMoveText();
+    }
+
+    function showMoveDropdown(input) {
+      input.nextElementSibling.style.display = 'block';
+    }
+
+    function filterMoveDropdown(input) {
+      const kw = input.value.trim();
+      const list = input.nextElementSibling;
+      list.style.display = 'block';
+      populateMoveDropdown(list, kw);
+      generateMoveText();
+    }
+
+    function populateMoveDropdown(listEl, keyword) {
+      listEl.innerHTML = '';
+      const filtered = globalPartsData.filter(p => 
+        !keyword || isMatched(p.id, keyword) || isMatched(p.name, keyword)
+      );
+
+      filtered.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'part-dropdown-item';
+        // 棚番号を含めない「品番 品名」の形式
+        item.innerHTML = `<b>${p.id} ${p.name}</b>`;
+        item.onclick = () => {
+          const input = listEl.previousElementSibling;
+          input.value = `${p.id} ${p.name}`;
+          listEl.style.display = 'none';
+          generateMoveText();
+        };
+        listEl.appendChild(item);
+      });
     }
 
     function toggleCustomDate(selectId, inputId) {
@@ -513,8 +566,10 @@
       const type = document.getElementById('moveType').value;
       let itemsText = "";
       document.querySelectorAll('#moveItemsContainer .dynamic-row').forEach(row => {
-        const name = row.querySelector('.move-part-select').value;
-        const qty = row.querySelector('.move-part-qty').value;
+        const nameInput = row.querySelector('.move-part-search');
+        const qtyInput = row.querySelector('.move-part-qty');
+        const name = nameInput ? nameInput.value.trim() : '';
+        const qty = qtyInput ? qtyInput.value : 1;
         if(name) itemsText += `・${name} × ${qty}\n`;
       });
 
@@ -642,17 +697,17 @@
 
     // ================= 個人在庫・棚卸タブ関連 =================
     function renderStockTable() {
-      const kw = document.getElementById('stockSearchInput').value.trim().toLowerCase();
+      const kw = document.getElementById('stockSearchInput').value.trim();
       const tbody = document.getElementById('stockTableBody');
       tbody.innerHTML = '';
 
       if (globalPartsData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:#888;">データが読み込まれていません（スプレッドシートの接続を確認してください）</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:#888;">データが読み込まれていません</td></tr>`;
         return;
       }
 
-      // 検索時に品番または品名でヒットするように変更
-      const filtered = globalPartsData.filter(p => !kw || p.id.toLowerCase().includes(kw) || p.name.toLowerCase().includes(kw));
+      // カタカナ全半角対応の曖昧検索
+      const filtered = globalPartsData.filter(p => !kw || isMatched(p.id, kw) || isMatched(p.name, kw));
       if(filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;">該当する部品がありません</td></tr>`;
         return;
