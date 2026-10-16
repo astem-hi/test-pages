@@ -109,6 +109,8 @@
       cursor: pointer;
       width: 100%;
       text-align: center;
+      text-decoration: none;
+      display: inline-block;
     }
     .btn-secondary { background: #6c757d; }
     .btn-success { background: var(--success-color); }
@@ -156,7 +158,6 @@
     .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; width: 100%; min-width: 0; }
     .preview-box { background: #e9ecef; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; margin-top: 8px; word-break: break-all; }
 
-    /* スマホはみ出し完全防止用グリッドラッパー */
     .grid-2col {
       display: grid;
       grid-template-columns: 4fr 6fr;
@@ -171,7 +172,6 @@
       width: 100%;
     }
 
-    /* 検索付きパーツ選択用コンポーネント */
     .part-search-container { position: relative; flex: 2; min-width: 0; }
     .part-dropdown-list {
       position: absolute; top: 100%; left: 0; width: 100%; max-height: 150px; overflow-y: auto;
@@ -304,6 +304,11 @@
       <label>生成されたLINEテキスト</label>
       <div class="preview-box" id="movePreview"></div>
       <button class="btn btn-success" style="margin-top:8px;" onclick="copyMoveText()">📋 文章を作成してコピペ</button>
+
+      <!-- TDC現在庫ページへのリンクボタン -->
+      <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px; text-align: center;">
+        <a href="https://tdc-artjet-stock-mgt.web.app/" target="_blank" class="btn btn-secondary">🔗 TDC現在庫ページ</a>
+      </div>
     </div>
   </div>
 
@@ -355,12 +360,15 @@
     </div>
   </div>
 
-  <!-- ================= タブ4: 個人在庫 & 棚卸 ================= -->
+  <!-- ================= タブ4: 個人在庫 & 差異修正 ================= -->
   <div id="tab-stock" class="tab-content">
     <div class="panel">
       <div class="section-title">
         <span>👤 個人・拠点別在庫一覧</span>
-        <button class="btn btn-secondary btn-sm" onclick="downloadInventoryCSV()">📥 棚卸CSVダウンロード</button>
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-danger btn-sm" onclick="openDiffModal()">⚠️ 差異修正</button>
+          <button class="btn btn-secondary btn-sm" onclick="downloadInventoryCSV()">📥 棚卸CSVダウンロード</button>
+        </div>
       </div>
       <input type="text" id="stockSearchInput" placeholder="🔍 品番または品名で在庫を絞り込み..." oninput="renderStockTable()">
       <div style="overflow-x: auto; max-height: 400px;">
@@ -369,7 +377,6 @@
             <tr>
               <th>品番</th>
               <th>品名</th>
-              <th>棚番</th>
               <th>大阪</th>
               <th>平田</th>
               <th>山本</th>
@@ -381,9 +388,63 @@
             </tr>
           </thead>
           <tbody id="stockTableBody">
-            <tr><td colspan="11" style="text-align:center;">スプレッドシートから読み込み中...</td></tr>
+            <tr><td colspan="10" style="text-align:center;">スプレッドシートから読み込み中...</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- 差異修正ログパネル -->
+    <div class="panel">
+      <div class="section-title"><span>📋 差異修正履歴ログ</span></div>
+      <div id="diffLogContainer" style="max-height: 200px; overflow-y: auto; font-size: 0.85rem; color: #555;">
+        まだ修正履歴はありません。
+      </div>
+    </div>
+  </div>
+
+  <!-- 差異修正モーダル -->
+  <div id="diffModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:400px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+      <div class="section-title"><span>⚠️ 在庫差異 修正入力</span></div>
+      
+      <label>編集者 <span style="color:red;">*必須</span></label>
+      <select id="diffEditor">
+        <option value="" disabled selected>選択してください</option>
+        <option value="平田">平田</option>
+        <option value="山本">山本</option>
+        <option value="向井">向井</option>
+        <option value="河原">河原</option>
+        <option value="井阪">井阪</option>
+        <option value="松井色素">松井色素</option>
+      </select>
+
+      <label>数量を変更したい人 <span style="color:red;">*必須</span></label>
+      <select id="diffTargetUser">
+        <option value="" disabled selected>選択してください</option>
+        <option value="大阪事務所">大阪事務所</option>
+        <option value="平田">平田</option>
+        <option value="山本">山本</option>
+        <option value="向井">向井</option>
+        <option value="井阪">井阪</option>
+        <option value="河原">河原</option>
+        <option value="松井">松井</option>
+      </select>
+
+      <label>部品 (品番 品名) <span style="color:red;">*必須</span></label>
+      <select id="diffPartSelect">
+        <option value="" disabled selected>部品を選択</option>
+      </select>
+
+      <label>数量 (増減 / 例: +2 または -1) <span style="color:red;">*必須</span></label>
+      <input type="text" id="diffQtyChange" placeholder="例: +2 または -1">
+
+      <label>理由 <span style="color:red;">*必須</span></label>
+      <textarea id="diffReason" placeholder="差異が発生した理由を入力"></textarea>
+
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn btn-success" onclick="submitDiffCorrection()">保存・ログ記録</button>
+        <button class="btn btn-secondary" onclick="closeDiffModal()">キャンセル</button>
       </div>
     </div>
   </div>
@@ -392,6 +453,7 @@
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmwX9ZCKIEMzYwQa2_OXtSk9gPMy6_l_KhmKvDUS8rP-JeiZxCz7nVzo4ZXR8lwGdaM7S-1J4rNyF3/pub?output=csv";
 
     let globalPartsData = [];
+    let diffLogs = [];
 
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -427,6 +489,7 @@
         renderMapList(globalPartsData);
         renderStockTable();
         refreshDynamicSelects();
+        populateDiffPartSelect();
 
       } catch (error) {
         console.error("読み込み失敗:", error);
@@ -436,7 +499,7 @@
 
     function showError(msg) {
       document.getElementById('mapPartsList').innerHTML = `<div style="color:#d9534f;">${msg}</div>`;
-      document.getElementById('stockTableBody').innerHTML = `<tr><td colspan="11" style="color:#d9534f; text-align:center;">${msg}</td></tr>`;
+      document.getElementById('stockTableBody').innerHTML = `<tr><td colspan="10" style="color:#d9534f; text-align:center;">${msg}</td></tr>`;
     }
 
     function parseCSV(text) {
@@ -474,7 +537,7 @@
       onMoveTypeChange();
       const repContainer = document.getElementById('machineSectionsContainer');
       repContainer.innerHTML = '';
-      addMachineSection(); // 最低1つの機器を表示
+      addMachineSection();
     }
 
     function normalizeSearchStr(str) {
@@ -901,7 +964,7 @@
       const effShip = getEffectiveShippingDate();
       const effArr = getEffectiveArrivalDate();
       if (effArr < effShip) {
-        alert("⚠️ 到着希望日は出荷日以降の日付指定してください。");
+        alert("⚠️ 到着希望日は出荷日以降の日付を指定してください。");
         return;
       }
 
@@ -919,7 +982,6 @@
           <b>機器別作業内容</b>
           <button class="btn btn-danger btn-sm" onclick="this.closest('.machine-section').remove(); generateReportText();">削除</button>
         </div>
-        <!-- 種別と号機を横並び (5:5) で配置 -->
         <div class="grid-2col">
           <div>
             <label>種別</label>
@@ -946,7 +1008,6 @@
         <input type="text" class="rep-m-remarks" placeholder="特記事項があれば" oninput="generateReportText()">
       `;
       container.appendChild(div);
-      // 初期状態では使用部品を空欄にするため addReportPartRow は呼ばない
       generateReportText();
     }
 
@@ -1010,7 +1071,6 @@
       filtered.forEach(p => {
         const item = document.createElement('div');
         item.className = 'part-dropdown-item';
-        // 品番と品名の間には半角スペース
         item.innerHTML = `<b>${p.id} ${p.name}</b>`;
         item.onclick = () => {
           const input = listEl.previousElementSibling;
@@ -1050,9 +1110,15 @@
         sec.querySelectorAll('.rep-parts-container .dynamic-row').forEach(row => {
           const pInput = row.querySelector('.rep-part-search');
           const pQtyInput = row.querySelector('.rep-part-qty') || row.querySelector('.rep-part-qty-input');
-          const pName = pInput ? pInput.value.trim() : '';
+          let pName = pInput ? pInput.value.trim() : '';
           const pQty = pQtyInput ? pQtyInput.value : '';
           if (pName) {
+            // 品番を除外し、品名のみにする（先頭の品番部分を削除）
+            const parts = pName.split(' ');
+            if (parts.length > 1) {
+              parts.shift(); // 先頭の品番を削除
+              pName = parts.join(' ');
+            }
             text += `・${pName} × ${pQty}\n`;
             partCount++;
           }
@@ -1074,20 +1140,20 @@
       alert("作業報告の文章をコピーしました！");
     }
 
-    // ================= 個人在庫・棚卸タブ関連 =================
+    // ================= 個人在庫・棚卸・差異修正タブ関連 =================
     function renderStockTable() {
       const kw = document.getElementById('stockSearchInput').value.trim();
       const tbody = document.getElementById('stockTableBody');
       tbody.innerHTML = '';
 
       if (globalPartsData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:#888;">データが読み込まれていません</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#888;">データが読み込まれていません</td></tr>`;
         return;
       }
 
       const filtered = globalPartsData.filter(p => !kw || isMatched(p.id, kw) || isMatched(p.name, kw));
       if(filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;">該当する部品がありません</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">該当する部品がありません</td></tr>`;
         return;
       }
 
@@ -1097,7 +1163,6 @@
         tr.innerHTML = `
           <td><b>${p.id}</b></td>
           <td><b>${p.name}</b></td>
-          <td>${p.location}</td>
           <td>${p.stock_osaka}</td>
           <td>${p.stock_hirata}</td>
           <td>${p.stock_yamamoto}</td>
@@ -1111,10 +1176,82 @@
       });
     }
 
-    function downloadInventoryCSV() {
-      let csv = "id,name,location,stock_osaka,stock_hirata,stock_yamamoto,stock_mukai,stock_isaka,stock_kawahara,stock_matsui\n";
+    function populateDiffPartSelect() {
+      const sel = document.getElementById('diffPartSelect');
+      sel.innerHTML = '<option value="" disabled selected>部品を選択</option>';
       globalPartsData.forEach(p => {
-        csv += `"${p.id}","${p.name}","${p.location}",${p.stock_osaka},${p.stock_hirata},${p.stock_yamamoto},${p.stock_mukai},${p.stock_isaka},${p.stock_kawahara},${p.stock_matsui}\n`;
+        const opt = document.createElement('option');
+        opt.value = `${p.id} ${p.name}`;
+        opt.textContent = `${p.id} ${p.name}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function openDiffModal() {
+      document.getElementById('diffModal').style.display = 'flex';
+    }
+
+    function closeDiffModal() {
+      document.getElementById('diffModal').style.display = 'none';
+    }
+
+    function submitDiffCorrection() {
+      const editor = document.getElementById('diffEditor').value;
+      const targetUser = document.getElementById('diffTargetUser').value;
+      const part = document.getElementById('diffPartSelect').value;
+      const qtyChange = document.getElementById('diffQtyChange').value.trim();
+      const reason = document.getElementById('diffReason').value.trim();
+
+      if (!editor || !targetUser || !part || !qtyChange || !reason) {
+        alert("⚠️ すべての必須項目を入力してください。");
+        return;
+      }
+
+      const now = new Date();
+      const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+      const logEntry = {
+        time: timeStr,
+        editor: editor,
+        targetUser: targetUser,
+        part: part,
+        qtyChange: qtyChange,
+        reason: reason
+      };
+
+      diffLogs.unshift(logEntry);
+      renderDiffLogs();
+
+      alert("✅ 差異修正ログが記録されました。");
+      closeDiffModal();
+
+      // フォームリセット
+      document.getElementById('diffEditor').value = '';
+      document.getElementById('diffTargetUser').value = '';
+      document.getElementById('diffPartSelect').value = '';
+      document.getElementById('diffQtyChange').value = '';
+      document.getElementById('diffReason').value = '';
+    }
+
+    function renderDiffLogs() {
+      const container = document.getElementById('diffLogContainer');
+      if (diffLogs.length === 0) {
+        container.innerHTML = 'まだ修正履歴はありません。';
+        return;
+      }
+      container.innerHTML = '';
+      diffLogs.forEach(log => {
+        const div = document.createElement('div');
+        div.style.cssText = "padding:6px; border-bottom:1px solid #eee; margin-bottom:4px;";
+        div.innerHTML = `<b>[${log.time}] 編集者: ${log.editor}</b><br>対象: ${log.targetUser} | 部品: ${log.part} | 数量増減: ${log.qtyChange}<br>理由: ${log.reason}`;
+        container.appendChild(div);
+      });
+    }
+
+    function downloadInventoryCSV() {
+      let csv = "id,name,stock_osaka,stock_hirata,stock_yamamoto,stock_mukai,stock_isaka,stock_kawahara,stock_matsui\n";
+      globalPartsData.forEach(p => {
+        csv += `"${p.id}","${p.name}",${p.stock_osaka},${p.stock_hirata},${p.stock_yamamoto},${p.stock_mukai},${p.stock_isaka},${p.stock_kawahara},${p.stock_matsui}\n`;
       });
       const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
