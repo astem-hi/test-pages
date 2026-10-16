@@ -188,7 +188,7 @@
         <div class="grid-c" id="mapShelfCBottom"></div>
       </div>
       <div class="shelf-group">
-        <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【キャビネット】棚D (D-1～D-3)</div>
+        <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚D】キャビネット (D-1～D-3)</div>
         <div class="grid-d" id="mapShelfD"></div>
       </div>
     </div>
@@ -216,19 +216,25 @@
       <div id="moveItemsContainer"></div>
       <button class="btn btn-secondary btn-sm" onclick="addMoveItemRow()" style="margin-bottom:10px;">＋ 商品行を追加</button>
 
+      <!-- 出荷日（横並び 5:5） -->
       <label>出荷日</label>
-      <select id="moveShippingDate" onchange="toggleCustomDate('moveShippingDate', 'moveShippingCustom')">
-        <option value="本日">本日</option>
-        <option value="日付指定">日付指定</option>
-      </select>
-      <input type="text" id="moveShippingCustom" placeholder="例: 10月15日(木)" style="display:none;" oninput="generateMoveText()">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+        <select id="moveShippingDate" onchange="toggleCustomDate('moveShippingDate', 'moveShippingCustom')">
+          <option value="本日">本日</option>
+          <option value="日付指定">日付指定</option>
+        </select>
+        <input type="date" id="moveShippingCustom" style="display:none;" onchange="generateMoveText()">
+      </div>
 
+      <!-- 到着希望（横並び 5:5） -->
       <label>到着希望</label>
-      <select id="moveArrivalDate" onchange="toggleCustomDate('moveArrivalDate', 'moveArrivalCustom')">
-        <option value="明日AM">明日AM</option>
-        <option value="日付指定">日付指定</option>
-      </select>
-      <input type="text" id="moveArrivalCustom" placeholder="例: 10月16日(金) 午後" style="display:none;" oninput="generateMoveText()">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+        <select id="moveArrivalDate" onchange="toggleCustomDate('moveArrivalDate', 'moveArrivalCustom')">
+          <option value="明日AM">明日AM</option>
+          <option value="日付指定">日付指定</option>
+        </select>
+        <input type="date" id="moveArrivalCustom" style="display:none;" onchange="generateMoveText()">
+      </div>
 
       <label>送り先</label>
       <select id="moveDestType" onchange="updateMoveDest()">
@@ -348,7 +354,7 @@
         if (!response.ok) throw new Error(`HTTPエラー! ステータス: ${response.status}`);
         const text = await response.text();
         if (text.trim().startsWith("<!DOCTYPE html>")) {
-          throw new Error("取得したデータがHTMLになっています。スプレッドシートの「ウェブに公開」形式を確認してください。");
+          throw new Error("取得したデータがHTMLになっています。スプレッドシートの公開設定を確認してください。");
         }
 
         globalPartsData = parseCSV(text);
@@ -413,18 +419,14 @@
       addMachineSection();
     }
 
-    // ── カタカナの全角半角正規化＆大文字小文字無視の検索補助 ──
+    // カタカナ全半角正規化＆大文字小文字無視
     function normalizeSearchStr(str) {
       if (!str) return "";
       return str.toLowerCase()
-        // 全角カタカナを半角カタカナに変換して統一
         .replace(/[\u30a1-\u30f6]/s, m => String.fromCharCode(m.charCodeAt(0) - 0x60f0))
-        // 半角カタカナを全角カタカナに統一する場合は両方小文字かつnormalizeなどでも対応可能ですが
-        // シンプルに全角→半角またはその逆の相互マッチ用変換
         .replace(/[ァ-ン]/g, s => String.fromCharCode(s.charCodeAt(0) - 0x60F0));
     }
 
-    // より確実な全角・半角カナ吸収マッチ関数
     function isMatched(target, query) {
       if (!target || !query) return false;
       const t = normalizeSearchStr(target);
@@ -432,7 +434,7 @@
       return t.includes(q) || target.toLowerCase().includes(query.toLowerCase());
     }
 
-    // 棚マップ生成（棚C: C-1-1/C-1-2横並び、C-2-1/C-2-2横並び / 棚D: D-1〜D-3縦並び）
+    // 棚マップ生成
     function initMapGrid() {
       const a = document.getElementById('mapShelfA');
       for(let r=1; r<=2; r++) for(let c=1; c<=4; c++) a.appendChild(createCell(`A-${r}-${c}`));
@@ -461,7 +463,6 @@
       return d;
     }
 
-    // 曖昧検索（品番・品名・棚番号 ＋ カタカナ全半角対応）
     function handleMapSearch() {
       const kw = document.getElementById('mapSearchInput').value.trim();
       document.querySelectorAll('.cell.active').forEach(el => el.classList.remove('active'));
@@ -481,7 +482,6 @@
       });
     }
 
-    // リスト表示：「品番 品名」（半角スペース）
     function renderMapList(items) {
       const container = document.getElementById('mapPartsList');
       container.innerHTML = items.length === 0 ? '<div style="padding:10px; color:#888;">該当する部品がありません</div>' : '';
@@ -497,7 +497,7 @@
       });
     }
 
-    // ================= 倉庫移動タブ関連（検索方式・棚番号非表示） =================
+    // ================= 倉庫移動タブ関連（検索式 ＆ 数量1〜10＋自由入力） =================
     function addMoveItemRow() {
       const c = document.getElementById('moveItemsContainer');
       const row = document.createElement('div');
@@ -507,11 +507,31 @@
           <input type="text" class="move-part-search" placeholder="🔍 品番・品名で検索..." oninput="filterMoveDropdown(this)" onfocus="showMoveDropdown(this)">
           <div class="part-dropdown-list"></div>
         </div>
-        <input type="number" style="flex:1;" placeholder="数量" value="1" min="1" class="move-part-qty" oninput="generateMoveText()">
+        <select style="flex:1;" class="move-part-qty" onchange="checkMoveQtyCustom(this)">
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+          <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+          <option value="10">10</option>
+          <option value="custom">自由入力...</option>
+        </select>
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateMoveText();">削除</button>
       `;
       c.appendChild(row);
       populateMoveDropdown(row.querySelector('.part-dropdown-list'), '');
+      generateMoveText();
+    }
+
+    function checkMoveQtyCustom(sel) {
+      if(sel.value === 'custom') {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '1';
+        input.value = '1';
+        input.style.flex = '1';
+        input.className = 'move-part-qty-input';
+        input.oninput = generateMoveText;
+        sel.replaceWith(input);
+      }
       generateMoveText();
     }
 
@@ -548,6 +568,13 @@
       });
     }
 
+    // 画面外クリックでドロップダウンを閉じる
+    window.addEventListener('click', (e) => {
+      if(!e.target.closest('.part-search-container')) {
+        document.querySelectorAll('.part-dropdown-list').forEach(l => l.style.display = 'none');
+      }
+    });
+
     function toggleCustomDate(selectId, inputId) {
       const sel = document.getElementById(selectId);
       const inp = document.getElementById(inputId);
@@ -562,19 +589,29 @@
       generateMoveText();
     }
 
+    function formatDateStr(dateVal) {
+      if(!dateVal) return '本日';
+      const d = new Date(dateVal);
+      return `${d.getMonth()+1}月${d.getDate()}日`;
+    }
+
     function generateMoveText() {
-      const type = document.getElementById('moveType').value;
       let itemsText = "";
       document.querySelectorAll('#moveItemsContainer .dynamic-row').forEach(row => {
         const nameInput = row.querySelector('.move-part-search');
-        const qtyInput = row.querySelector('.move-part-qty');
+        const qtyInput = row.querySelector('.move-part-qty') || row.querySelector('.move-part-qty-input');
         const name = nameInput ? nameInput.value.trim() : '';
         const qty = qtyInput ? qtyInput.value : 1;
         if(name) itemsText += `・${name} × ${qty}\n`;
       });
 
-      const sDate = document.getElementById('moveShippingDate').value === '日付指定' ? document.getElementById('moveShippingCustom').value : document.getElementById('moveShippingDate').value;
-      const aDate = document.getElementById('moveArrivalDate').value === '日付指定' ? document.getElementById('moveArrivalCustom').value : document.getElementById('moveArrivalDate').value;
+      const sDateMode = document.getElementById('moveShippingDate').value;
+      const sDateVal = document.getElementById('moveShippingCustom').value;
+      const sDate = sDateMode === '日付指定' && sDateVal ? formatDateStr(sDateVal) : '本日';
+
+      const aDateMode = document.getElementById('moveArrivalDate').value;
+      const aDateVal = document.getElementById('moveArrivalCustom').value;
+      const aDate = aDateMode === '日付指定' && aDateVal ? formatDateStr(aDateVal) : '明日AM';
 
       let dest = document.getElementById('moveDestType').value;
       if(dest === '自由記述') {
@@ -587,9 +624,8 @@
       const yashiro = document.getElementById('moveYashiroToggle').checked ? "八代さんへ連絡済です。\n" : "";
       const remarks = document.getElementById('moveRemarks').value.trim();
 
-      let text = `お疲れ様です。倉庫移動をお願いいたします。\n\n${itemsText}\n${sDate}出荷、${aDate}着にて${dest}へ直送お願いいたします。\n倉庫移動扱いでお願いいたします。\n${yashiro}`;
-      if(remarks) text += `備考: ${remarks}\n`;
-      text += `よろしくお願いいたします。`;
+      // ご要望の備考フォーマット（よろしくお願いいたします。のさらに下に1行スペースを空けて (備考： )）
+      let text = `お疲れ様です。倉庫移動をお願いいたします。\n\n${itemsText}\n${sDate}出荷、${aDate}着にて${dest}へ直送お願いいたします。\n倉庫移動扱いでお願いいたします。\n${yashiro}よろしくお願いいたします。\n\n(備考：${remarks})`;
 
       document.getElementById('movePreview').innerText = text;
     }
@@ -706,7 +742,6 @@
         return;
       }
 
-      // カタカナ全半角対応の曖昧検索
       const filtered = globalPartsData.filter(p => !kw || isMatched(p.id, kw) || isMatched(p.name, kw));
       if(filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;">該当する部品がありません</td></tr>`;
