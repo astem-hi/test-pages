@@ -325,7 +325,7 @@
         </div>
         <div>
           <label>報告者</label>
-          <select id="repReporter">
+          <select id="repReporter" onchange="onReporterChange()">
             <option value="平田">平田</option>
             <option value="山本">山本</option>
             <option value="向井">向井</option>
@@ -338,12 +338,12 @@
 
       <label>同行メンバー (複数選択可)</label>
       <div id="repCompanions" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; font-size:0.85rem;">
-        <label><input type="checkbox" value="平田"> 平田</label>
-        <label><input type="checkbox" value="山本"> 山本</label>
-        <label><input type="checkbox" value="向井"> 向井</label>
-        <label><input type="checkbox" value="河原"> 河原</label>
-        <label><input type="checkbox" value="井阪"> 井阪</label>
-        <label><input type="checkbox" value="松井色素"> 松井色素</label>
+        <label><input type="checkbox" value="平田" onchange="generateReportText()"> 平田</label>
+        <label><input type="checkbox" value="山本" onchange="generateReportText()"> 山本</label>
+        <label><input type="checkbox" value="向井" onchange="generateReportText()"> 向井</label>
+        <label><input type="checkbox" value="河原" onchange="generateReportText()"> 河原</label>
+        <label><input type="checkbox" value="井阪" onchange="generateReportText()"> 井阪</label>
+        <label><input type="checkbox" value="松井色素" onchange="generateReportText()"> 松井色素</label>
       </div>
 
       <label>顧客名</label>
@@ -469,6 +469,7 @@
     window.addEventListener('DOMContentLoaded', async () => {
       initMapGrid();
       document.getElementById('repDate').valueAsDate = new Date();
+      onReporterChange(); // 初期ロード時の同行者制御
       await fetchSheetData();
     });
 
@@ -752,9 +753,7 @@
         }
       }
 
-      // 依頼種別に応じた送り先の選択肢設定
       if (type === '大阪事務所在庫から発送（部品移動のみ）' || type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
-        // お客様名（自由記述）のみ選択可能にする
         destSelect.innerHTML = `
           <option value="自由記述">お客様名（自由記述）</option>
         `;
@@ -935,7 +934,6 @@
         return;
       }
 
-      // 自由記述（お客様名）が選択されている場合、入力が必須
       const destType = document.getElementById('moveDestType').value;
       if (destType === '自由記述') {
         const customName = document.getElementById('moveDestCustom').value.trim();
@@ -958,6 +956,24 @@
     }
 
     // ================= 作業報告タブ関連 =================
+    function onReporterChange() {
+      const reporter = document.getElementById('repReporter').value;
+      document.querySelectorAll('#repCompanions input[type="checkbox"]').forEach(chk => {
+        const label = chk.closest('label');
+        if (chk.value === reporter) {
+          chk.checked = false;      // 選択されていたらチェックを外す
+          chk.disabled = true;      // 選択不可（無効化）にする
+          label.style.opacity = '0.4';
+          label.style.textDecoration = 'line-through';
+        } else {
+          chk.disabled = false;     // 有効化
+          label.style.opacity = '1';
+          label.style.textDecoration = 'none';
+        }
+      });
+      generateReportText();
+    }
+
     function addMachineSection() {
       const container = document.getElementById('machineSectionsContainer');
       const div = document.createElement('div');
