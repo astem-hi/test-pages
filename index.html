@@ -278,15 +278,15 @@
       </div>
       <div id="dateErrorMsg" class="error-msg">⚠️ 到着希望日は出荷日以降の日付を指定してください。</div>
 
-      <!-- 送り先セクション（常に表示） -->
+      <!-- 送り先セクション -->
       <div id="destSection">
-        <label>送り先</label>
+        <label>送り先 <span id="destRequiredMark" style="color:red; display:none;">*必須</span></label>
         <select id="moveDestType" onchange="updateMoveDest()">
           <option value="大阪事務所">大阪事務所</option>
           <option value="松井色素">松井色素</option>
           <option value="自由記述">お客様名（自由記述）</option>
         </select>
-        <input type="text" id="moveDestCustom" placeholder="お客様名を入力" style="display:none;" oninput="generateMoveText()">
+        <input type="text" id="moveDestCustom" placeholder="お客様名を入力 (必須)" style="display:none;" oninput="generateMoveText()">
       </div>
 
       <label style="display:flex; align-items:center; gap:6px; margin: 8px 0;">
@@ -730,7 +730,6 @@
 
     function onMoveTypeChange() {
       const type = document.getElementById('moveType').value;
-      const destSection = document.getElementById('destSection');
       const destSelect = document.getElementById('moveDestType');
       const receiverSection = document.getElementById('receiverSection');
       const addItemBtn = document.getElementById('addItemBtn');
@@ -753,22 +752,15 @@
         }
       }
 
-      // 送り先欄を常時表示し、種別ごとの選択肢を適切に設定する
-      destSection.style.display = 'block';
-      if (type === '倉庫移動') {
+      // 依頼種別に応じた送り先の選択肢設定
+      if (type === '大阪事務所在庫から発送（部品移動のみ）' || type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
+        // お客様名（自由記述）のみ選択可能にする
         destSelect.innerHTML = `
-          <option value="大阪事務所">大阪事務所</option>
-          <option value="松井色素">松井色素</option>
           <option value="自由記述">お客様名（自由記述）</option>
         `;
+        destSelect.value = '自由記述';
       } else if (type === '通常販売で出荷') {
         destSelect.innerHTML = `
-          <option value="松井色素">松井色素</option>
-          <option value="自由記述">お客様名（自由記述）</option>
-        `;
-      } else if (type === '大阪事務所在庫から発送（部品移動のみ）' || type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
-        destSelect.innerHTML = `
-          <option value="大阪事務所">大阪事務所</option>
           <option value="松井色素">松井色素</option>
           <option value="自由記述">お客様名（自由記述）</option>
         `;
@@ -786,7 +778,15 @@
     function updateMoveDest() {
       const t = document.getElementById('moveDestType').value;
       const custom = document.getElementById('moveDestCustom');
-      custom.style.display = t === '自由記述' ? 'block' : 'none';
+      const requiredMark = document.getElementById('destRequiredMark');
+
+      if (t === '自由記述') {
+        custom.style.display = 'block';
+        requiredMark.style.display = 'inline';
+      } else {
+        custom.style.display = 'none';
+        requiredMark.style.display = 'none';
+      }
       generateMoveText();
     }
 
@@ -807,7 +807,6 @@
       const d = new Date();
       d.setDate(d.getDate() + 1);
       const days = ['日', '月', '火', '水', '木', '金', '土'];
-      // 空白を入れずに結合して表示
       return `${d.getDate()}日(${days[d.getDay()]})AM`;
     }
 
@@ -895,7 +894,7 @@
       let actionWord = "直送";
       if (destType === '自由記述') {
         const customName = document.getElementById('moveDestCustom').value.trim();
-        destName = customName ? customName + '様' : 'お客様';
+        destName = customName ? customName + '様' : '（顧客名未入力）';
       } else if (destType === '松井色素') {
         destName = "松井色素様";
         actionWord = "発送";
@@ -934,6 +933,17 @@
         alert("⚠️ 受取責任者を選択してください。");
         receiverSelect.focus();
         return;
+      }
+
+      // 自由記述（お客様名）が選択されている場合、入力が必須
+      const destType = document.getElementById('moveDestType').value;
+      if (destType === '自由記述') {
+        const customName = document.getElementById('moveDestCustom').value.trim();
+        if (!customName) {
+          alert("⚠️ 送り先のお客様名（自由記述）を入力してください。");
+          document.getElementById('moveDestCustom').focus();
+          return;
+        }
       }
 
       const effShip = getEffectiveShippingDate();
