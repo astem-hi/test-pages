@@ -138,6 +138,13 @@
     }
     @keyframes blink { 0% { opacity: 1; } 100% { opacity: 0.4; } }
 
+    /* PC時：棚マップを2カラムレイアウトにするコンテナ */
+    .map-container { display: flex; flex-direction: column; gap: 12px; }
+    @media (min-width: 900px) {
+      .map-container { display: grid; grid-template-columns: 2fr 1fr; align-items: start; }
+      .map-left { margin-bottom: 0; }
+    }
+
     /* リスト・テーブル */
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     th, td { border: 1px solid var(--border-color); padding: 6px; text-align: left; }
@@ -170,31 +177,33 @@
 
   <!-- ================= タブ1: 棚マップ ================= -->
   <div id="tab-map" class="tab-content active">
-    <div class="panel">
-      <div class="section-title"><span>部品検索・棚マップ</span></div>
-      <input type="text" id="mapSearchInput" placeholder="🔍 品番・品名・棚番号を曖昧検索..." oninput="handleMapSearch()">
-      
-      <div class="shelf-group">
-        <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 A】大型コンテナ (2段×4列)</div>
-        <div class="grid-a" id="mapShelfA"></div>
+    <div class="map-container">
+      <div class="map-left panel">
+        <div class="section-title"><span>部品検索・棚マップ</span></div>
+        <input type="text" id="mapSearchInput" placeholder="🔍 品番・品名・棚番号を曖昧検索..." oninput="handleMapSearch()">
+        
+        <div class="shelf-group">
+          <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 A】大型コンテナ (2段×4列)</div>
+          <div class="grid-a" id="mapShelfA"></div>
+        </div>
+        <div class="shelf-group">
+          <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 B】赤ボックス (6段×5列)</div>
+          <div class="grid-b" id="mapShelfB"></div>
+        </div>
+        <div class="shelf-group">
+          <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 C】青ボックス (上:C-1-1/C-1-2, 下:C-2-1/C-2-2)</div>
+          <div class="grid-c" id="mapShelfCTop" style="margin-bottom:4px;"></div>
+          <div class="grid-c" id="mapShelfCBottom"></div>
+        </div>
+        <div class="shelf-group">
+          <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚D】キャビネット (D-1～D-3)</div>
+          <div class="grid-d" id="mapShelfD"></div>
+        </div>
       </div>
-      <div class="shelf-group">
-        <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 B】赤ボックス (6段×5列)</div>
-        <div class="grid-b" id="mapShelfB"></div>
+      <div class="map-right panel">
+        <div class="section-title"><span>検索ヒット・部品一覧</span></div>
+        <div id="mapPartsList" style="max-height:600px; overflow-y:auto;">スプレッドシートから読み込み中...</div>
       </div>
-      <div class="shelf-group">
-        <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 C】青ボックス (上:C-1-1/C-1-2, 下:C-2-1/C-2-2)</div>
-        <div class="grid-c" id="mapShelfCTop" style="margin-bottom:4px;"></div>
-        <div class="grid-c" id="mapShelfCBottom"></div>
-      </div>
-      <div class="shelf-group">
-        <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚D】キャビネット (D-1～D-3)</div>
-        <div class="grid-d" id="mapShelfD"></div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="section-title"><span>検索ヒット・部品一覧</span></div>
-      <div id="mapPartsList" style="max-height:300px; overflow-y:auto;">スプレッドシートから読み込み中...</div>
     </div>
   </div>
 
@@ -216,9 +225,9 @@
       <div id="moveItemsContainer"></div>
       <button class="btn btn-secondary btn-sm" onclick="addMoveItemRow()" style="margin-bottom:10px;">＋ 商品行を追加</button>
 
-      <!-- 出荷日（横並び 5:5） -->
+      <!-- 出荷日（スマホでハミ出さないよう 4:6 レイアウト） -->
       <label>出荷日</label>
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+      <div style="display:grid; grid-template-columns: 4fr 6fr; gap:6px;">
         <select id="moveShippingDate" onchange="toggleCustomDate('moveShippingDate', 'moveShippingCustom')">
           <option value="本日">本日</option>
           <option value="日付指定">日付指定</option>
@@ -226,9 +235,9 @@
         <input type="date" id="moveShippingCustom" style="display:none;" onchange="generateMoveText()">
       </div>
 
-      <!-- 到着希望（横並び 5:5） -->
+      <!-- 到着希望（スマホでハミ出さないよう 4:6 レイアウト） -->
       <label>到着希望</label>
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+      <div style="display:grid; grid-template-columns: 4fr 6fr; gap:6px;">
         <select id="moveArrivalDate" onchange="toggleCustomDate('moveArrivalDate', 'moveArrivalCustom')">
           <option value="明日AM">明日AM</option>
           <option value="日付指定">日付指定</option>
@@ -248,8 +257,14 @@
         <input type="checkbox" id="moveYashiroToggle" style="width:auto; margin:0;" onchange="generateMoveText()"> 八代さんへ連絡済
       </label>
 
-      <label>備考</label>
-      <textarea id="moveRemarks" placeholder="備考があれば入力" oninput="generateMoveText()"></textarea>
+      <!-- 備考欄トグルスイッチ -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; background:#edf2f7; padding:8px; border-radius:6px;">
+        <label style="margin:0; font-size:0.85rem;">備考欄を追加する</label>
+        <input type="checkbox" id="remarksToggle" style="width:auto; margin:0; transform:scale(1.3);" onchange="toggleRemarksBox()">
+      </div>
+      <div id="remarksBox" style="display:none;">
+        <textarea id="moveRemarks" placeholder="備考があれば入力" oninput="generateMoveText()"></textarea>
+      </div>
 
       <label>生成されたLINEテキスト</label>
       <div class="preview-box" id="movePreview"></div>
@@ -330,7 +345,6 @@
 
     let globalPartsData = [];
 
-    // タブ切り替え
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -341,7 +355,6 @@
       if (tabId === 'stock') renderStockTable();
     }
 
-    // 初期化 ＆ スプレッドシート読み込み
     window.addEventListener('DOMContentLoaded', async () => {
       initMapGrid();
       document.getElementById('repDate').valueAsDate = new Date();
@@ -419,7 +432,6 @@
       addMachineSection();
     }
 
-    // カタカナ全半角正規化＆大文字小文字無視
     function normalizeSearchStr(str) {
       if (!str) return "";
       return str.toLowerCase()
@@ -434,7 +446,6 @@
       return t.includes(q) || target.toLowerCase().includes(query.toLowerCase());
     }
 
-    // 棚マップ生成
     function initMapGrid() {
       const a = document.getElementById('mapShelfA');
       for(let r=1; r<=2; r++) for(let c=1; c<=4; c++) a.appendChild(createCell(`A-${r}-${c}`));
@@ -497,7 +508,7 @@
       });
     }
 
-    // ================= 倉庫移動タブ関連（検索式 ＆ 数量1〜10＋自由入力） =================
+    // ================= 倉庫移動タブ関連 =================
     function addMoveItemRow() {
       const c = document.getElementById('moveItemsContainer');
       const row = document.createElement('div');
@@ -508,6 +519,7 @@
           <div class="part-dropdown-list"></div>
         </div>
         <select style="flex:1;" class="move-part-qty" onchange="checkMoveQtyCustom(this)">
+          <option value="" disabled selected>数量</option>
           <option value="1">1</option><option value="2">2</option><option value="3">3</option>
           <option value="4">4</option><option value="5">5</option><option value="6">6</option>
           <option value="7">7</option><option value="8">8</option><option value="9">9</option>
@@ -526,7 +538,8 @@
         const input = document.createElement('input');
         input.type = 'number';
         input.min = '1';
-        input.value = '1';
+        input.value = '';
+        input.placeholder = '数量';
         input.style.flex = '1';
         input.className = 'move-part-qty-input';
         input.oninput = generateMoveText;
@@ -556,7 +569,6 @@
       filtered.forEach(p => {
         const item = document.createElement('div');
         item.className = 'part-dropdown-item';
-        // 棚番号を含めない「品番 品名」の形式
         item.innerHTML = `<b>${p.id} ${p.name}</b>`;
         item.onclick = () => {
           const input = listEl.previousElementSibling;
@@ -568,7 +580,6 @@
       });
     }
 
-    // 画面外クリックでドロップダウンを閉じる
     window.addEventListener('click', (e) => {
       if(!e.target.closest('.part-search-container')) {
         document.querySelectorAll('.part-dropdown-list').forEach(l => l.style.display = 'none');
@@ -589,6 +600,12 @@
       generateMoveText();
     }
 
+    function toggleRemarksBox() {
+      const isChecked = document.getElementById('remarksToggle').checked;
+      document.getElementById('remarksBox').style.display = isChecked ? 'block' : 'none';
+      generateMoveText();
+    }
+
     function formatDateStr(dateVal) {
       if(!dateVal) return '本日';
       const d = new Date(dateVal);
@@ -601,7 +618,7 @@
         const nameInput = row.querySelector('.move-part-search');
         const qtyInput = row.querySelector('.move-part-qty') || row.querySelector('.move-part-qty-input');
         const name = nameInput ? nameInput.value.trim() : '';
-        const qty = qtyInput ? qtyInput.value : 1;
+        const qty = qtyInput ? qtyInput.value : '';
         if(name) itemsText += `・${name} × ${qty}\n`;
       });
 
@@ -613,19 +630,28 @@
       const aDateVal = document.getElementById('moveArrivalCustom').value;
       const aDate = aDateMode === '日付指定' && aDateVal ? formatDateStr(aDateVal) : '明日AM';
 
-      let dest = document.getElementById('moveDestType').value;
-      if(dest === '自由記述') {
+      const destType = document.getElementById('moveDestType').value;
+      let dest = destType;
+      if(destType === '自由記述') {
         const nameInput = document.getElementById('moveDestCustom').value.trim();
         dest = nameInput ? nameInput + '様' : 'お客様';
-      } else {
+      } else if(destType === '松井色素') {
         dest = dest + '様';
       }
+      // 大阪事務所の時は「様」をつけない
 
       const yashiro = document.getElementById('moveYashiroToggle').checked ? "八代さんへ連絡済です。\n" : "";
-      const remarks = document.getElementById('moveRemarks').value.trim();
+      
+      let remarksText = "";
+      const isRemarksOn = document.getElementById('remarksToggle').checked;
+      if (isRemarksOn) {
+        const remarksVal = document.getElementById('moveRemarks').value.trim();
+        if (remarksVal) {
+          remarksText = `\n(備考：${remarksVal})`;
+        }
+      }
 
-      // ご要望の備考フォーマット（よろしくお願いいたします。のさらに下に1行スペースを空けて (備考： )）
-      let text = `お疲れ様です。倉庫移動をお願いいたします。\n\n${itemsText}\n${sDate}出荷、${aDate}着にて${dest}へ直送お願いいたします。\n倉庫移動扱いでお願いいたします。\n${yashiro}よろしくお願いいたします。\n\n(備考：${remarks})`;
+      let text = `お疲れ様です。倉庫移動をお願いいたします。\n\n${itemsText}\n${sDate}出荷、${aDate}着にて${dest}へ直送お願いいたします。\n倉庫移動扱いでお願いいたします。\n${yashiro}よろしくお願いいたします。${remarksText}`;
 
       document.getElementById('movePreview').innerText = text;
     }
