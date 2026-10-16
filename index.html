@@ -278,6 +278,7 @@
       </div>
       <div id="dateErrorMsg" class="error-msg">⚠️ 到着希望日は出荷日以降の日付を指定してください。</div>
 
+      <!-- 送り先セクション（常に表示） -->
       <div id="destSection">
         <label>送り先</label>
         <select id="moveDestType" onchange="updateMoveDest()">
@@ -752,28 +753,31 @@
         }
       }
 
-      if (type === '大阪事務所在庫から発送（部品移動のみ）' || type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
-        destSection.style.display = 'none';
+      // 送り先欄を常時表示し、種別ごとの選択肢を適切に設定する
+      destSection.style.display = 'block';
+      if (type === '倉庫移動') {
+        destSelect.innerHTML = `
+          <option value="大阪事務所">大阪事務所</option>
+          <option value="松井色素">松井色素</option>
+          <option value="自由記述">お客様名（自由記述）</option>
+        `;
+      } else if (type === '通常販売で出荷') {
+        destSelect.innerHTML = `
+          <option value="松井色素">松井色素</option>
+          <option value="自由記述">お客様名（自由記述）</option>
+        `;
+      } else if (type === '大阪事務所在庫から発送（部品移動のみ）' || type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
+        destSelect.innerHTML = `
+          <option value="大阪事務所">大阪事務所</option>
+          <option value="松井色素">松井色素</option>
+          <option value="自由記述">お客様名（自由記述）</option>
+        `;
       } else {
-        destSection.style.display = 'block';
-        if (type === '倉庫移動') {
-          destSelect.innerHTML = `
-            <option value="大阪事務所">大阪事務所</option>
-            <option value="松井色素">松井色素</option>
-            <option value="自由記述">お客様名（自由記述）</option>
-          `;
-        } else if (type === '通常販売で出荷') {
-          destSelect.innerHTML = `
-            <option value="松井色素">松井色素</option>
-            <option value="自由記述">お客様名（自由記述）</option>
-          `;
-        } else {
-          destSelect.innerHTML = `
-            <option value="大阪事務所">大阪事務所</option>
-            <option value="松井色素">松井色素</option>
-            <option value="自由記述">お客様名（自由記述）</option>
-          `;
-        }
+        destSelect.innerHTML = `
+          <option value="大阪事務所">大阪事務所</option>
+          <option value="松井色素">松井色素</option>
+          <option value="自由記述">お客様名（自由記述）</option>
+        `;
       }
       updateMoveDest();
       generateMoveText();
@@ -803,7 +807,8 @@
       const d = new Date();
       d.setDate(d.getDate() + 1);
       const days = ['日', '月', '火', '水', '木', '金', '土'];
-      return `${d.getDate()}日(${days[d.getDay()]} )AM`;
+      // 空白を入れずに結合して表示
+      return `${d.getDate()}日(${days[d.getDay()]})AM`;
     }
 
     function getEffectiveShippingDate() {
@@ -885,65 +890,35 @@
       let headerLine = "";
       let middleLine = "";
 
-      if (type === 'ヘッドクリーナー在庫落とし') {
-        headerLine = "お疲れ様です。在庫落とし処理をお願いいたします。";
-        const destType = document.getElementById('moveDestType').value;
-        let destName = destType;
-        let actionWord = "直送";
-        if (destType === '自由記述') {
-          const customName = document.getElementById('moveDestCustom').value.trim();
-          destName = customName ? customName + '様' : 'お客様';
-        } else if (destType === '松井色素') {
-          destName = "松井色素様";
-          actionWord = "発送";
-        } else if (destType === '大阪事務所') {
-          destName = "大阪事務所";
-          actionWord = "発送";
-        }
-        middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n在庫落とし扱いでお願いいたします。`;
-        let text = `${headerLine}\n\n${itemsText}\n${middleLine}\n${yashiro}よろしくお願いいたします。${remarksText}`;
-        document.getElementById('movePreview').innerText = text;
-        return;
+      const destType = document.getElementById('moveDestType').value;
+      let destName = destType;
+      let actionWord = "直送";
+      if (destType === '自由記述') {
+        const customName = document.getElementById('moveDestCustom').value.trim();
+        destName = customName ? customName + '様' : 'お客様';
+      } else if (destType === '松井色素') {
+        destName = "松井色素様";
+        actionWord = "発送";
+      } else if (destType === '大阪事務所') {
+        destName = "大阪事務所";
+        actionWord = "発送";
       }
 
-      if (type === '通常販売で出荷') {
+      if (type === 'ヘッドクリーナー在庫落とし') {
+        headerLine = "お疲れ様です。在庫落とし処理をお願いいたします。";
+        middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n在庫落とし扱いでお願いいたします。`;
+      } else if (type === '通常販売で出荷') {
         headerLine = "お疲れ様です。通常販売で出荷をお願いいたします。";
-        const destType = document.getElementById('moveDestType').value;
-        let destName = destType;
-        let actionWord = "直送";
-        if (destType === '自由記述') {
-          const customName = document.getElementById('moveDestCustom').value.trim();
-          destName = customName ? customName + '様' : 'お客様';
-          actionWord = "直送";
-        } else if (destType === '松井色素') {
-          destName = "松井色素様";
-          actionWord = "発送";
-        }
+        if (destType === '自由記述') actionWord = "直送";
         middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n通常販売扱いでお願いいたします。`;
-
       } else if (type === '大阪事務所在庫から発送（部品移動のみ）') {
         headerLine = "お疲れ様です。大阪事務所から部品発送をお願いいたします。";
-        middleLine = `${sDate}出荷、${aDate}着にて大阪事務所へ発送お願いいたします。\n部品移動扱いでお願いいたします。`;
-
+        middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n部品移動扱いでお願いいたします。`;
       } else if (type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
         headerLine = "お疲れ様です。大阪事務所から売り立てで出荷をお願いいたします。";
-        middleLine = `${sDate}出荷、${aDate}着にて大阪事務所へ発送お願いいたします。\n売り立て処理扱いでお願いいたします。`;
-
+        middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n売り立て処理扱いでお願いいたします。`;
       } else {
         headerLine = "お疲れ様です。倉庫移動をお願いいたします。";
-        const destType = document.getElementById('moveDestType').value;
-        let destName = destType;
-        let actionWord = "直送";
-        if (destType === '自由記述') {
-          const customName = document.getElementById('moveDestCustom').value.trim();
-          destName = customName ? customName + '様' : 'お客様';
-        } else if (destType === '松井色素') {
-          destName = "松井色素様";
-          actionWord = "発送";
-        } else if (destType === '大阪事務所') {
-          destName = "大阪事務所";
-          actionWord = "発送";
-        }
         middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n倉庫移動扱いでお願いいたします。`;
       }
 
@@ -1113,10 +1088,9 @@
           let pName = pInput ? pInput.value.trim() : '';
           const pQty = pQtyInput ? pQtyInput.value : '';
           if (pName) {
-            // 品番を除外し、品名のみにする（先頭の品番部分を削除）
             const parts = pName.split(' ');
             if (parts.length > 1) {
-              parts.shift(); // 先頭の品番を削除
+              parts.shift();
               pName = parts.join(' ');
             }
             text += `・${pName} × ${pQty}\n`;
@@ -1225,7 +1199,6 @@
       alert("✅ 差異修正ログが記録されました。");
       closeDiffModal();
 
-      // フォームリセット
       document.getElementById('diffEditor').value = '';
       document.getElementById('diffTargetUser').value = '';
       document.getElementById('diffPartSelect').value = '';
