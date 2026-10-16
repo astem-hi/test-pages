@@ -77,7 +77,7 @@
     }
     input, select, textarea {
       width: 100%;
-      max-width: 100%; /* スマホでのハミ出し防止 */
+      max-width: 100%;
       padding: 8px 10px;
       font-size: 0.9rem;
       border: 1.5px solid var(--border-color);
@@ -139,7 +139,7 @@
     }
     @keyframes blink { 0% { opacity: 1; } 100% { opacity: 0.4; } }
 
-    /* PC時：棚マップを2カラムレイアウトにするコンテナ */
+    /* PC時：棚マップを2カラムレイアウト */
     .map-container { display: flex; flex-direction: column; gap: 12px; }
     @media (min-width: 900px) {
       .map-container { display: grid; grid-template-columns: 2fr 1fr; align-items: start; }
@@ -154,7 +154,6 @@
     .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
     .preview-box { background: #e9ecef; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; margin-top: 8px; }
 
-    /* 検索付きパーツ選択用コンポーネント */
     .part-search-container { position: relative; flex: 2; }
     .part-dropdown-list {
       position: absolute; top: 100%; left: 0; width: 100%; max-height: 150px; overflow-y: auto;
@@ -224,9 +223,22 @@
 
       <label>商品・数量（検索対応）</label>
       <div id="moveItemsContainer"></div>
-      <button class="btn btn-secondary btn-sm" onclick="addMoveItemRow()" style="margin-bottom:10px;">＋ 商品行を追加</button>
+      <button class="btn btn-secondary btn-sm" id="addItemBtn" onclick="addMoveItemRow()" style="margin-bottom:10px;">＋ 商品行を追加</button>
 
-      <!-- 出荷日（スマホ強制収まり対応 4:6、overflow hidden） -->
+      <!-- 受取責任者（倉庫移動、大阪事務所発送の際に必須表示） -->
+      <div id="receiverSection" style="display:none;">
+        <label>受取責任者 <span style="color:red;">*必須</span></label>
+        <select id="moveReceiver" onchange="generateMoveText()">
+          <option value="" disabled selected>選択してください</option>
+          <option value="平田">平田</option>
+          <option value="山本">山本</option>
+          <option value="向井">向井</option>
+          <option value="井阪">井阪</option>
+          <option value="河原">河原</option>
+        </select>
+      </div>
+
+      <!-- 出荷日 -->
       <label>出荷日</label>
       <div style="display:grid; grid-template-columns: 4fr 6fr; gap:6px; overflow:hidden;">
         <select id="moveShippingDate" onchange="toggleCustomDate('moveShippingDate', 'moveShippingCustom')">
@@ -236,7 +248,7 @@
         <input type="date" id="moveShippingCustom" style="display:none; width:100%;" onchange="generateMoveText()">
       </div>
 
-      <!-- 到着希望（スマホ強制収まり対応 4:6、overflow hidden） -->
+      <!-- 到着希望 -->
       <label>到着希望</label>
       <div style="display:grid; grid-template-columns: 4fr 6fr; gap:6px; overflow:hidden;">
         <select id="moveArrivalDate" onchange="toggleCustomDate('moveArrivalDate', 'moveArrivalCustom')">
@@ -426,10 +438,7 @@
     }
 
     function refreshDynamicSelects() {
-      const moveContainer = document.getElementById('moveItemsContainer');
-      moveContainer.innerHTML = '';
-      addMoveItemRow();
-
+      onMoveTypeChange();
       const repContainer = document.getElementById('machineSectionsContainer');
       repContainer.innerHTML = '';
       addMachineSection();
@@ -512,26 +521,52 @@
     }
 
     // ================= 倉庫移動タブ関連 =================
-    function addMoveItemRow() {
+    function addMoveItemRow(presetId = '', presetQty = '') {
       const c = document.getElementById('moveItemsContainer');
       const row = document.createElement('div');
       row.className = 'dynamic-row';
+      
+      let initialSearchVal = '';
+      if (presetId) {
+        const found = globalPartsData.find(p => p.id === presetId);
+        if (found) initialSearchVal = `${found.id} ${found.name}`;
+      }
+
       row.innerHTML = `
         <div class="part-search-container" style="flex:2;">
-          <input type="text" class="move-part-search" placeholder="🔍 品番・品名で検索..." oninput="filterMoveDropdown(this)" onfocus="showMoveDropdown(this)">
+          <input type="text" class="move-part-search" value="${initialSearchVal}" placeholder="🔍 品番・品名で検索..." oninput="filterMoveDropdown(this)" onfocus="showMoveDropdown(this)">
           <div class="part-dropdown-list"></div>
         </div>
         <select style="flex:1;" class="move-part-qty" onchange="checkMoveQtyCustom(this)">
-          <option value="" disabled selected>数量</option>
-          <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-          <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-          <option value="10">10</option>
-          <option value="custom">自由入力...</option>
+          <option value="" disabled ${!presetQty ? 'selected' : ''}>数量</option>
+          <option value="1" ${presetQty==1?'selected':''}>1</option>
+          <option value="2" ${presetQty==2?'selected':''}>2</option>
+          <option value="3" ${presetQty==3?'selected':''}>3</option>
+          <option value="4" ${presetQty==4?'selected':''}>4</option>
+          <option value="5" ${presetQty==5?'selected':''}>5</option>
+          <option value="6" ${presetQty==6?'selected':''}>6</option>
+          <option value="7" ${presetQty==7?'selected':''}>7</option>
+          <option value="8" ${presetQty==8?'selected':''}>8</option>
+          <option value="9" ${presetQty==9?'selected':''}>9</option>
+          <option value="10" ${presetQty==10?'selected':''}>10</option>
+          <option value="custom" ${presetQty>10?'selected':''}>自由入力...</option>
         </select>
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateMoveText();">削除</button>
       `;
       c.appendChild(row);
+
+      if (presetQty > 10) {
+        const sel = row.querySelector('.move-part-qty');
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '1';
+        input.value = presetQty;
+        input.style.flex = '1';
+        input.className = 'move-part-qty-input';
+        input.oninput = generateMoveText;
+        sel.replaceWith(input);
+      }
+
       populateMoveDropdown(row.querySelector('.part-dropdown-list'), '');
       generateMoveText();
     }
@@ -600,15 +635,35 @@
       const type = document.getElementById('moveType').value;
       const destSection = document.getElementById('destSection');
       const destSelect = document.getElementById('moveDestType');
-      
-      // 送り先セレクトの選択肢を制御
+      const receiverSection = document.getElementById('receiverSection');
+      const addItemBtn = document.getElementById('addItemBtn');
+      const moveContainer = document.getElementById('moveItemsContainer');
+
+      // 受取責任者欄の表示制御（「倉庫移動」「大阪事務所から発送(部品移動のみ)」のときに表示）
+      if (type === '倉庫移動' || type === '大阪事務所在庫から発送（部品移動のみ）') {
+        receiverSection.style.display = 'block';
+      } else {
+        receiverSection.style.display = 'none';
+      }
+
+      // ヘッドクリーナー在庫落としの場合はデフォルトでAJ-4233を10個セット
+      if (type === 'ヘッドクリーナー在庫落とし') {
+        moveContainer.innerHTML = '';
+        addMoveItemRow('AJ-4233', 10);
+        addItemBtn.style.display = 'none'; // 行追加ボタン非表示
+      } else {
+        addItemBtn.style.display = 'block';
+        if (moveContainer.children.length === 0) {
+          addMoveItemRow();
+        }
+      }
+
       if (type === '大阪事務所在庫から発送（部品移動のみ）') {
-        destSection.style.display = 'none'; // 送り先を非表示（大阪事務所を隠すため）
+        destSection.style.display = 'none';
       } else if (type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
-        destSection.style.display = 'none'; // 送り先非表示（大阪事務所と松井色素を除外）
+        destSection.style.display = 'none';
       } else {
         destSection.style.display = 'block';
-        // 送り先の選択肢再構築
         if (type === '倉庫移動') {
           destSelect.innerHTML = `
             <option value="大阪事務所">大阪事務所</option>
@@ -646,21 +701,40 @@
     }
 
     function formatDateStr(dateVal) {
-      if(!dateVal) return '本日';
+      if(!dateVal) return '';
       const d = new Date(dateVal);
-      return `${d.getMonth()+1}月${d.getDate()}日`;
+      const days = ['日', '月', '火', '水', '木', '金', '土'];
+      return `${d.getMonth()+1}月${d.getDate()}日(${days[d.getDay()]})`;
+    }
+
+    function getTomorrowStr() {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      const days = ['日', '月', '火', '水', '木', '金', '土'];
+      return `${d.getDate()}日(${days[d.getDay()]})`;
     }
 
     function generateMoveText() {
       const type = document.getElementById('moveType').value;
-      let itemsText = "";
+      
+      // 1. 商品リストを取得し、品番の昇順でソートする
+      let itemsList = [];
       document.querySelectorAll('#moveItemsContainer .dynamic-row').forEach(row => {
         const nameInput = row.querySelector('.move-part-search');
         const qtyInput = row.querySelector('.move-part-qty') || row.querySelector('.move-part-qty-input');
         const name = nameInput ? nameInput.value.trim() : '';
         const qty = qtyInput ? qtyInput.value : '';
-        if(name) itemsText += `・${name} × ${qty}\n`;
+        if(name) {
+          // 品番部分を抽出してソート用に保持（例: "AJ-001 品名" から "AJ-001" を取得）
+          const parts = name.split(' ');
+          const id = parts[0] || '';
+          itemsList.push({ id: id, text: `・${name} × ${qty}\n` });
+        }
       });
+
+      // 品番（id）の昇順に並び替え
+      itemsList.sort((a, b) => a.id.localeCompare(b.id, 'ja', { numeric: true }));
+      let itemsText = itemsList.map(i => i.text).join('');
 
       const sDateMode = document.getElementById('moveShippingDate').value;
       const sDateVal = document.getElementById('moveShippingCustom').value;
@@ -668,7 +742,14 @@
 
       const aDateMode = document.getElementById('moveArrivalDate').value;
       const aDateVal = document.getElementById('moveArrivalCustom').value;
-      const aDate = aDateMode === '日付指定' && aDateVal ? formatDateStr(aDateVal) : '明日AM';
+      
+      let aDate = '';
+      if (aDateMode === '日付指定' && aDateVal) {
+        aDate = `${formatDateStr(aDateVal)}最短着`;
+      } else {
+        // 明日AMの場合は翌日の日付(例：17日(土))のように表示
+        aDate = getTomorrowStr();
+      }
 
       const yashiro = document.getElementById('moveYashiroToggle').checked ? "八代さんへ連絡済です。\n" : "";
       
@@ -683,6 +764,32 @@
 
       let headerLine = "";
       let middleLine = "";
+
+      // 受取責任者の取得＆バリデーション用
+      let receiver = "";
+      const receiverSelect = document.getElementById('moveReceiver');
+      if (receiverSelect) receiver = receiverSelect.value;
+
+      if (type === 'ヘッドクリーナー在庫落とし') {
+        headerLine = "お疲れ様です。在庫落とし処理をお願いいたします。";
+        const destType = document.getElementById('moveDestType').value;
+        let destName = destType;
+        let actionWord = "直送";
+        if (destType === '自由記述') {
+          const customName = document.getElementById('moveDestCustom').value.trim();
+          destName = customName ? customName + '様' : 'お客様';
+        } else if (destType === '松井色素') {
+          destName = "松井色素様";
+          actionWord = "発送";
+        } else if (destType === '大阪事務所') {
+          destName = "大阪事務所";
+          actionWord = "発送";
+        }
+        middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n在庫落とし扱いでお願いいたします。`;
+        let text = `${headerLine}\n\n${itemsText}\n${middleLine}\n${yashiro}よろしくお願いいたします。${remarksText}`;
+        document.getElementById('movePreview').innerText = text;
+        return;
+      }
 
       if (type === '通常販売で出荷') {
         headerLine = "お疲れ様です。通常販売で出荷をお願いいたします。";
@@ -701,28 +808,12 @@
 
       } else if (type === '大阪事務所在庫から発送（部品移動のみ）') {
         headerLine = "お疲れ様です。大阪事務所から部品発送をお願いいたします。";
-        middleLine = `${sDate}出荷、${aDate}着にて大阪事務所へ発送お願いいたします。\n部品移動扱いでお願いいたします。`;
+        const receiverStr = receiver ? ` 受取責任者：${receiver}` : "";
+        middleLine = `${sDate}出荷、${aDate}着にて大阪事務所へ発送お願いいたします。\n部品移動扱いでお願いいたします。${receiverStr}`;
 
       } else if (type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
         headerLine = "お疲れ様です。大阪事務所から売り立てで出荷をお願いいたします。";
         middleLine = `${sDate}出荷、${aDate}着にて大阪事務所へ発送お願いいたします。\n売り立て処理扱いでお願いいたします。`;
-
-      } else if (type === 'ヘッドクリーナー在庫落とし') {
-        headerLine = "お疲れ様です。ヘッドクリーナー在庫落としをお願いいたします。";
-        const destType = document.getElementById('moveDestType').value;
-        let destName = destType;
-        let actionWord = "直送";
-        if (destType === '自由記述') {
-          const customName = document.getElementById('moveDestCustom').value.trim();
-          destName = customName ? customName + '様' : 'お客様';
-        } else if (destType === '松井色素') {
-          destName = "松井色素様";
-          actionWord = "発送";
-        } else if (destType === '大阪事務所') {
-          destName = "大阪事務所";
-          actionWord = "発送";
-        }
-        middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n在庫落とし扱いでお願いいたします。`;
 
       } else {
         // 通常の「倉庫移動」
@@ -740,7 +831,8 @@
           destName = "大阪事務所";
           actionWord = "発送";
         }
-        middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n倉庫移動扱いでお願いいたします。`;
+        const receiverStr = receiver ? ` 受取責任者：${receiver}` : "";
+        middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n倉庫移動扱いでお願いいたします。${receiverStr}`;
       }
 
       let text = `${headerLine}\n\n${itemsText}\n${middleLine}\n${yashiro}よろしくお願いいたします。${remarksText}`;
@@ -749,6 +841,13 @@
     }
 
     function copyMoveText() {
+      const type = document.getElementById('moveType').value;
+      const receiverSelect = document.getElementById('moveReceiver');
+      if ((type === '倉庫移動' || type === '大阪事務所在庫から発送（部品移動のみ）') && receiverSelect && !receiverSelect.value) {
+        alert("⚠️ 受取責任者を選択してください。");
+        receiverSelect.focus();
+        return;
+      }
       navigator.clipboard.writeText(document.getElementById('movePreview').innerText);
       alert("倉庫移動の文章をコピーしました！");
     }
