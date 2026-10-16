@@ -20,6 +20,7 @@
       margin: 0;
       padding: 8px;
       color: #333;
+      overflow-x: hidden;
     }
     h1 {
       font-size: 1.2rem;
@@ -64,6 +65,7 @@
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.06);
       margin-bottom: 12px;
+      overflow: hidden;
     }
     .section-title {
       font-weight: bold;
@@ -114,7 +116,7 @@
     .btn-sm { padding: 4px 8px; font-size: 0.75rem; width: auto; }
 
     /* 棚マップグリッド */
-    .shelf-group { margin-bottom: 12px; background: #fafafa; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; }
+    .shelf-group { margin-bottom: 12px; background: #fafafa; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; overflow: hidden; }
     .grid-a { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
     .grid-b { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
     .grid-c { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; }
@@ -151,10 +153,26 @@
     th, td { border: 1px solid var(--border-color); padding: 6px; text-align: left; }
     th { background: #f1f3f5; }
     
-    .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
-    .preview-box { background: #e9ecef; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; margin-top: 8px; }
+    .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; width: 100%; min-width: 0; }
+    .preview-box { background: #e9ecef; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; margin-top: 8px; word-break: break-all; }
 
-    .part-search-container { position: relative; flex: 2; }
+    /* スマホはみ出し完全防止用グリッドラッパー */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 4fr 6fr;
+      gap: 6px;
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .grid-2col > * {
+      min-width: 0;
+      width: 100%;
+    }
+
+    /* 検索付きパーツ選択用コンポーネント */
+    .part-search-container { position: relative; flex: 2; min-width: 0; }
     .part-dropdown-list {
       position: absolute; top: 100%; left: 0; width: 100%; max-height: 150px; overflow-y: auto;
       background: #fff; border: 1px solid var(--border-color); border-radius: 4px; z-index: 100; display: none;
@@ -226,7 +244,7 @@
       <div id="moveItemsContainer"></div>
       <button class="btn btn-secondary btn-sm" id="addItemBtn" onclick="addMoveItemRow()" style="margin-bottom:10px;">＋ 商品行を追加</button>
 
-      <!-- 受取責任者（倉庫移動、大阪事務所発送の際にフォーム上のみで必須表示） -->
+      <!-- 受取責任者 -->
       <div id="receiverSection" style="display:none;">
         <label>受取責任者 <span style="color:red;">*必須</span></label>
         <select id="moveReceiver" onchange="generateMoveText()">
@@ -241,22 +259,22 @@
 
       <!-- 出荷日 -->
       <label>出荷日</label>
-      <div style="display:grid; grid-template-columns: 4fr 6fr; gap:6px; overflow:hidden;">
+      <div class="grid-2col">
         <select id="moveShippingDate" onchange="toggleCustomDate('moveShippingDate', 'moveShippingCustom')">
           <option value="本日">本日</option>
           <option value="日付指定">日付指定</option>
         </select>
-        <input type="date" id="moveShippingCustom" style="display:none; width:100%;" onchange="generateMoveText()">
+        <input type="date" id="moveShippingCustom" style="display:none;" onchange="generateMoveText()">
       </div>
 
       <!-- 到着希望 -->
       <label>到着希望</label>
-      <div style="display:grid; grid-template-columns: 4fr 6fr; gap:6px; overflow:hidden;">
+      <div class="grid-2col">
         <select id="moveArrivalDate" onchange="toggleCustomDate('moveArrivalDate', 'moveArrivalCustom')">
           <option value="明日AM">明日AM</option>
           <option value="日付指定">日付指定</option>
         </select>
-        <input type="date" id="moveArrivalCustom" style="display:none; width:100%;" onchange="generateMoveText()">
+        <input type="date" id="moveArrivalCustom" style="display:none;" onchange="generateMoveText()">
       </div>
       <div id="dateErrorMsg" class="error-msg">⚠️ 到着希望日は出荷日以降の日付を指定してください。</div>
 
@@ -294,9 +312,22 @@
     <div class="panel">
       <div class="section-title"><span>📝 作業報告フォーム</span></div>
 
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-        <div><label>処理日</label><input type="date" id="repDate"></div>
-        <div><label>報告者</label><select id="repReporter"><option value="平田">平田</option><option value="山本">山本</option><option value="向井">向井</option><option value="河原">河原</option><option value="井阪">井阪</option><option value="松井色素">松井色素</option></select></div>
+      <div class="grid-2col">
+        <div>
+          <label>処理日</label>
+          <input type="date" id="repDate">
+        </div>
+        <div>
+          <label>報告者</label>
+          <select id="repReporter">
+            <option value="平田">平田</option>
+            <option value="山本">山本</option>
+            <option value="向井">向井</option>
+            <option value="河原">河原</option>
+            <option value="井阪">井阪</option>
+            <option value="松井色素">松井色素</option>
+          </select>
+        </div>
       </div>
 
       <label>同行メンバー (複数選択可)</label>
@@ -443,7 +474,7 @@
       onMoveTypeChange();
       const repContainer = document.getElementById('machineSectionsContainer');
       repContainer.innerHTML = '';
-      addMachineSection();
+      addMachineSection(); // 最低1つの機器を表示
     }
 
     function normalizeSearchStr(str) {
@@ -709,7 +740,7 @@
       const d = new Date();
       d.setDate(d.getDate() + 1);
       const days = ['日', '月', '火', '水', '木', '金', '土'];
-      return `${d.getDate()}日(${days[d.getDay()]})AM`;
+      return `${d.getDate()}日(${days[d.getDay()]} )AM`;
     }
 
     function getEffectiveShippingDate() {
@@ -739,7 +770,6 @@
       const type = document.getElementById('moveType').value;
       const errBox = document.getElementById('dateErrorMsg');
 
-      // 日付妥当性チェック（到着希望日が出荷日より前ならエラー）
       const effShip = getEffectiveShippingDate();
       const effArr = getEffectiveArrivalDate();
       if (effArr < effShip) {
@@ -837,7 +867,6 @@
         middleLine = `${sDate}出荷、${aDate}着にて大阪事務所へ発送お願いいたします。\n売り立て処理扱いでお願いいたします。`;
 
       } else {
-        // 通常の「倉庫移動」
         headerLine = "お疲れ様です。倉庫移動をお願いいたします。";
         const destType = document.getElementById('moveDestType').value;
         let destName = destType;
@@ -872,7 +901,7 @@
       const effShip = getEffectiveShippingDate();
       const effArr = getEffectiveArrivalDate();
       if (effArr < effShip) {
-        alert("⚠️ 到着希望日は出荷日以降の日付を指定してください。");
+        alert("⚠️ 到着希望日は出荷日以降の日付指定してください。");
         return;
       }
 
@@ -891,7 +920,7 @@
           <button class="btn btn-danger btn-sm" onclick="this.closest('.machine-section').remove(); generateReportText();">削除</button>
         </div>
         <!-- 種別と号機を横並び (5:5) で配置 -->
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+        <div class="grid-2col">
           <div>
             <label>種別</label>
             <select class="rep-m-type" onchange="generateReportText()">
@@ -910,14 +939,15 @@
         <input type="text" class="rep-m-content" placeholder="作業内容" oninput="generateReportText()">
         <label>対応</label>
         <input type="text" class="rep-m-action" placeholder="対応内容" oninput="generateReportText()">
-        <label>使用部品</label>
+        <label>使用部品（検索・自由記入対応）</label>
         <div class="rep-parts-container"></div>
         <button class="btn btn-secondary btn-sm" onclick="addReportPartRow(this)">＋ 部品を追加</button>
         <label style="margin-top:6px;">機器別備考</label>
         <input type="text" class="rep-m-remarks" placeholder="特記事項があれば" oninput="generateReportText()">
       `;
       container.appendChild(div);
-      addReportPartRow(div.querySelector('.btn-secondary'));
+      // 初期状態では使用部品を空欄にするため addReportPartRow は呼ばない
+      generateReportText();
     }
 
     function addReportPartRow(btn) {
@@ -925,14 +955,71 @@
       const row = document.createElement('div');
       row.className = 'dynamic-row';
       row.innerHTML = `
-        <select style="flex:2;" class="rep-part-select" onchange="generateReportText()">
-          ${globalPartsData.map(p => `<option value="${p.id}${p.name}">${p.id}${p.name}</option>`).join('')}
+        <div class="part-search-container" style="flex:2;">
+          <input type="text" class="rep-part-search" placeholder="🔍 品番・品名検索 or 直接入力..." oninput="filterReportDropdown(this)" onfocus="showReportDropdown(this)">
+          <div class="part-dropdown-list"></div>
+        </div>
+        <select style="flex:1;" class="rep-part-qty" onchange="checkReportQtyCustom(this)">
+          <option value="" disabled selected>数量</option>
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+          <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+          <option value="10">10</option>
+          <option value="custom">自由入力...</option>
         </select>
-        <input type="number" style="flex:1;" value="1" min="1" class="rep-part-qty" oninput="generateReportText()">
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
       `;
       container.appendChild(row);
+      populateReportDropdown(row.querySelector('.part-dropdown-list'), '');
       generateReportText();
+    }
+
+    function checkReportQtyCustom(sel) {
+      if(sel.value === 'custom') {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '1';
+        input.value = '';
+        input.placeholder = '数量';
+        input.style.flex = '1';
+        input.className = 'rep-part-qty-input';
+        input.oninput = generateReportText;
+        sel.replaceWith(input);
+      }
+      generateReportText();
+    }
+
+    function showReportDropdown(input) {
+      input.nextElementSibling.style.display = 'block';
+    }
+
+    function filterReportDropdown(input) {
+      const kw = input.value.trim();
+      const list = input.nextElementSibling;
+      list.style.display = 'block';
+      populateReportDropdown(list, kw);
+      generateReportText();
+    }
+
+    function populateReportDropdown(listEl, keyword) {
+      listEl.innerHTML = '';
+      const filtered = globalPartsData.filter(p => 
+        !keyword || isMatched(p.id, keyword) || isMatched(p.name, keyword)
+      );
+
+      filtered.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'part-dropdown-item';
+        // 品番と品名の間には半角スペース
+        item.innerHTML = `<b>${p.id} ${p.name}</b>`;
+        item.onclick = () => {
+          const input = listEl.previousElementSibling;
+          input.value = `${p.id} ${p.name}`;
+          listEl.style.display = 'none';
+          generateReportText();
+        };
+        listEl.appendChild(item);
+      });
     }
 
     function generateReportText() {
@@ -961,10 +1048,14 @@
         text += `交換部品:\n`;
         let partCount = 0;
         sec.querySelectorAll('.rep-parts-container .dynamic-row').forEach(row => {
-          const pName = row.querySelector('.rep-part-select').value;
-          const pQty = row.querySelector('.rep-part-qty').value;
-          text += `・${pName} × ${pQty}\n`;
-          partCount++;
+          const pInput = row.querySelector('.rep-part-search');
+          const pQtyInput = row.querySelector('.rep-part-qty') || row.querySelector('.rep-part-qty-input');
+          const pName = pInput ? pInput.value.trim() : '';
+          const pQty = pQtyInput ? pQtyInput.value : '';
+          if (pName) {
+            text += `・${pName} × ${pQty}\n`;
+            partCount++;
+          }
         });
         if(partCount === 0) text += `なし\n`;
         if(remarks) text += `備考: ${remarks}\n`;
