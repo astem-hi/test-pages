@@ -12,6 +12,7 @@
       --highlight-color: #ff3b30;
       --border-color: #dcdfe6;
       --success-color: #28a745;
+      --warning-color: #ffc107;
     }
     * { box-sizing: border-box; }
     body {
@@ -115,6 +116,7 @@
     .btn-secondary { background: #6c757d; }
     .btn-success { background: var(--success-color); }
     .btn-danger { background: var(--highlight-color); }
+    .btn-warning { background: #e0a800; color: #fff; }
     .btn-sm { padding: 4px 8px; font-size: 0.75rem; width: auto; }
 
     /* 棚マップグリッド */
@@ -143,14 +145,12 @@
     }
     @keyframes blink { 0% { opacity: 1; } 100% { opacity: 0.4; } }
 
-    /* PC時：棚マップを2カラムレイアウト */
     .map-container { display: flex; flex-direction: column; gap: 12px; }
     @media (min-width: 900px) {
       .map-container { display: grid; grid-template-columns: 2fr 1fr; align-items: start; }
       .map-left { margin-bottom: 0; }
     }
 
-    /* リスト・テーブル */
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     th, td { border: 1px solid var(--border-color); padding: 6px; text-align: left; }
     th { background: #f1f3f5; }
@@ -180,6 +180,7 @@
     .part-dropdown-item { padding: 6px 8px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #f1f3f5; }
     .part-dropdown-item:hover { background: #f8f9fa; }
     .error-msg { color: #ff3b30; font-size: 0.8rem; font-weight: bold; margin-top: -4px; margin-bottom: 8px; display: none; }
+    .unproc-card { background: #fff3cd; border: 1px solid #ffeeba; padding: 8px; border-radius: 6px; margin-bottom: 6px; font-size: 0.85rem; }
   </style>
 </head>
 <body>
@@ -304,7 +305,9 @@
 
       <label>生成されたLINEテキスト</label>
       <div class="preview-box" id="movePreview"></div>
-      <button class="btn btn-success" style="margin-top:8px;" onclick="copyMoveText()">📋 文章を作成してコピペ</button>
+      
+      <!-- 文章作成＆部品移動セットボタン -->
+      <button class="btn btn-success" style="margin-top:8px;" onclick="copyMoveTextAndSet()">📋 文章を作成してコピペ & 部品移動をセット</button>
 
       <!-- TDC現在庫ページへのリンクボタン -->
       <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px; text-align: center;">
@@ -317,6 +320,14 @@
   <div id="tab-report" class="tab-content">
     <div class="panel">
       <div class="section-title"><span>📝 作業報告フォーム</span></div>
+
+      <!-- 作業報告上の未処理移動リスト（お客様名宛て） -->
+      <div id="reportUnprocessedContainer" style="margin-bottom: 12px; display:none;">
+        <div style="background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:8px;">
+          <b style="color:#856404;">⚠️ 移動部品があります（作業報告で処理待ち）</b>
+          <div id="reportUnprocessedList" style="margin-top:6px;"></div>
+        </div>
+      </div>
 
       <div class="grid-2col">
         <div>
@@ -395,11 +406,30 @@
       </div>
     </div>
 
+    <!-- 未処理の移動リストパネル（個人在庫タブ） -->
+    <div class="panel" id="stockUnprocessedPanel" style="display:none;">
+      <div class="section-title"><span>⚠️ 未処理の移動リスト（大阪事務所・松井色素宛てなど）</span></div>
+      <div id="stockUnprocessedList" style="max-height: 250px; overflow-y: auto;"></div>
+    </div>
+
     <!-- 差異修正ログパネル -->
     <div class="panel">
       <div class="section-title"><span>📋 差異修正履歴ログ</span></div>
       <div id="diffLogContainer" style="max-height: 200px; overflow-y: auto; font-size: 0.85rem; color: #555;">
         まだ修正履歴はありません。
+      </div>
+    </div>
+  </div>
+
+  <!-- 未使用部品の個人在庫移動モーダル -->
+  <div id="unusedModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1100; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:450px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+      <div class="section-title"><span>📦 未使用部品の個人在庫への割り当て</span></div>
+      <p style="font-size:0.85rem; color:#555;">以下の部品が未使用として残りました。誰の個人在庫に加算しますか？</p>
+      <div id="unusedItemsFormContainer" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-success" onclick="submitUnusedItemsAllocation()">確定して在庫に加算</button>
+        <button class="btn btn-secondary" onclick="closeUnusedModal()">スキップする</button>
       </div>
     </div>
   </div>
@@ -429,7 +459,7 @@
         <option value="向井">向井</option>
         <option value="井阪">井阪</option>
         <option value="河原">河原</option>
-        <option value="松井">松井</option>
+        <option value="松井色素">松井色素</option>
       </select>
 
       <label>部品 (品番 品名) <span style="color:red;">*必須</span></label>
@@ -455,6 +485,10 @@
 
     let globalPartsData = [];
     let diffLogs = [];
+    let pendingMoves = JSON.parse(localStorage.getItem('pending_moves') || '[]');
+    let currentUnusedData = null;
+
+    const ALL_MEMBERS = ['平田', '山本', '向井', '井阪', '河原', '松井色素'];
 
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -463,14 +497,21 @@
       document.getElementById('tab-' + tabId).classList.add('active');
       document.getElementById('btn-' + tabId).classList.add('active');
       
-      if (tabId === 'stock') renderStockTable();
+      if (tabId === 'stock') {
+        renderStockTable();
+        renderUnprocessedLists();
+      }
+      if (tabId === 'report') {
+        renderUnprocessedLists();
+      }
     }
 
     window.addEventListener('DOMContentLoaded', async () => {
       initMapGrid();
       document.getElementById('repDate').valueAsDate = new Date();
-      onReporterChange(); // 初期ロード時の同行者制御
+      onReporterChange();
       await fetchSheetData();
+      renderUnprocessedLists();
     });
 
     async function fetchSheetData() {
@@ -492,6 +533,7 @@
         renderStockTable();
         refreshDynamicSelects();
         populateDiffPartSelect();
+        renderUnprocessedLists();
 
       } catch (error) {
         console.error("読み込み失敗:", error);
@@ -925,7 +967,7 @@
       document.getElementById('movePreview').innerText = text;
     }
 
-    function copyMoveText() {
+    function copyMoveTextAndSet() {
       const type = document.getElementById('moveType').value;
       const receiverSelect = document.getElementById('moveReceiver');
       if ((type === '倉庫移動' || type === '大阪事務所在庫から発送（部品移動のみ）') && receiverSelect && !receiverSelect.value) {
@@ -935,9 +977,10 @@
       }
 
       const destType = document.getElementById('moveDestType').value;
+      let customerName = destType;
       if (destType === '自由記述') {
-        const customName = document.getElementById('moveDestCustom').value.trim();
-        if (!customName) {
+        customerName = document.getElementById('moveDestCustom').value.trim();
+        if (!customerName) {
           alert("⚠️ 送り先のお客様名（自由記述）を入力してください。");
           document.getElementById('moveDestCustom').focus();
           return;
@@ -951,8 +994,188 @@
         return;
       }
 
+      // 部品リストの収集
+      let items = [];
+      document.querySelectorAll('#moveItemsContainer .dynamic-row').forEach(row => {
+        const nameInput = row.querySelector('.move-part-search');
+        const qtyInput = row.querySelector('.move-part-qty') || row.querySelector('.move-part-qty-input');
+        const name = nameInput ? nameInput.value.trim() : '';
+        const qty = qtyInput ? Number(qtyInput.value) : 0;
+        if(name && qty > 0) {
+          items.push({ part: name, qty: qty });
+        }
+      });
+
+      if (items.length === 0) {
+        alert("⚠️ 移動する商品・数量を追加してください。");
+        return;
+      }
+
+      // 到着予定日文字列の生成（YYYY-MM-DD）
+      const aDateMode = document.getElementById('moveArrivalDate').value;
+      const aDateVal = document.getElementById('moveArrivalCustom').value;
+      let arrivalDateStr = '';
+      if (aDateMode === '日付指定' && aDateVal) {
+        arrivalDateStr = aDateVal;
+      } else {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        arrivalDateStr = tomorrow.toISOString().slice(0, 10);
+      }
+
+      const now = new Date();
+      const instructionDateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
+
+      const moveRecord = {
+        id: 'MOVE-' + Date.now(),
+        type: type,
+        customer: customerName,
+        destination: destType === '自由記述' ? customerName : destType,
+        receiver: receiverSelect ? receiverSelect.value : '（指定なし）',
+        instructionDate: instructionDateStr,
+        arrivalDate: arrivalDateStr,
+        items: items
+      };
+
+      pendingMoves.push(moveRecord);
+      localStorage.setItem('pending_moves', JSON.stringify(pendingMoves));
+
       navigator.clipboard.writeText(document.getElementById('movePreview').innerText);
-      alert("倉庫移動の文章をコピーしました！");
+      alert("📋 文章をコピーし、部品移動データをセットしました！到着予定日以降に未処理リストに表示されます。");
+      renderUnprocessedLists();
+    }
+
+    // ================= 未処理リスト・作業報告・個人在庫連動 =================
+    function renderUnprocessedLists() {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      
+      // 到着予定日が今日以降（arrivalDate <= todayStr）のものを対象とする
+      const availableMoves = pendingMoves.filter(m => m.arrivalDate <= todayStr);
+
+      // 1. 作業報告タブ用（お客様宛て等：自由記述 or 通常販売などで倉庫移動以外・またはお客様名が指定されているもの）
+      const reportContainer = document.getElementById('reportUnprocessedContainer');
+      const reportList = document.getElementById('reportUnprocessedList');
+      const reportMoves = availableMoves.filter(m => m.destination !== '大阪事務所' && m.destination !== '松井色素');
+
+      if (reportMoves.length > 0) {
+        reportContainer.style.display = 'block';
+        reportList.innerHTML = '';
+        reportMoves.forEach((m, idx) => {
+          const div = document.createElement('div');
+          div.className = 'unproc-card';
+          div.innerHTML = `
+            <div><b>顧客: ${m.customer}</b> (指示日: ${m.instructionDate} / 到着日: ${m.arrivalDate} / 責任者: ${m.receiver})</div>
+            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${m.items.map(i => `・${i.part} ×${i.qty}`).join('<br>')}</div>
+            <div style="display:flex; gap:6px; margin-top:6px;">
+              <button class="btn btn-success btn-sm" onclick="processReportIntegration('${m.id}')">この内容で作業報告と紐付け</button>
+              <button class="btn btn-secondary btn-sm" onclick="skipPendingMove('${m.id}')">スルーする</button>
+            </div>
+          `;
+          reportList.appendChild(div);
+        });
+      } else {
+        reportContainer.style.display = 'none';
+      }
+
+      // 2. 個人在庫タブ用（大阪事務所・松井色素宛てなど、または全件表示して任意処理）
+      const stockPanel = document.getElementById('stockUnprocessedPanel');
+      const stockList = document.getElementById('stockUnprocessedList');
+      
+      if (availableMoves.length > 0) {
+        stockPanel.style.display = 'block';
+        stockList.innerHTML = '';
+        availableMoves.forEach((m) => {
+          const div = document.createElement('div');
+          div.className = 'unproc-card';
+          div.innerHTML = `
+            <div><b>[${m.destination}] ${m.customer}</b> (指示日: ${m.instructionDate} / 責任者: ${m.receiver})</div>
+            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${m.items.map(i => `・${i.part} ×${i.qty}`).join('<br>')}</div>
+            <div style="display:flex; gap:6px; margin-top:6px; align-items:center;">
+              <select id="stockAddUser-${m.id}" style="width:auto; margin:0; font-size:0.8rem; padding:4px;">
+                <option value="大阪事務所">大阪事務所</option>
+                <optgroup label="個人在庫">
+                  ${ALL_MEMBERS.map(mem => `<option value="${mem}" ${mem===m.receiver?'selected':''}>${mem}</option>`).join('')}
+                </optgroup>
+              </select>
+              <button class="btn btn-success btn-sm" onclick="processStockIntegration('${m.id}')">指定先へ在庫加算</button>
+              <button class="btn btn-secondary btn-sm" onclick="skipPendingMove('${m.id}')">削除/スルー</button>
+            </div>
+          `;
+          stockList.appendChild(div);
+        });
+      } else {
+        stockPanel.style.display = 'none';
+      }
+    }
+
+    function skipPendingMove(moveId) {
+      pendingMoves = pendingMoves.filter(m => m.id !== moveId);
+      localStorage.setItem('pending_moves', JSON.stringify(pendingMoves));
+      renderUnprocessedLists();
+    }
+
+    function processReportIntegration(moveId) {
+      const move = pendingMoves.find(m => m.id === moveId);
+      if (!move) return;
+
+      // 顧客名に自動入力
+      document.getElementById('repCustomer').value = move.customer;
+
+      // 最初の機器セクションの部品としてセット
+      const machineSecs = document.querySelectorAll('.machine-section');
+      if (machineSecs.length > 0) {
+        const partsContainer = machineSecs[0].querySelector('.rep-parts-container');
+        partsContainer.innerHTML = '';
+        move.items.forEach(item => {
+          const row = document.createElement('div');
+          row.className = 'dynamic-row';
+          row.innerHTML = `
+            <div class="part-search-container" style="flex:2;">
+              <input type="text" class="rep-part-search" value="${item.part}" placeholder="🔍 品番・品名..." oninput="filterReportDropdown(this)" onfocus="showReportDropdown(this)">
+              <div class="part-dropdown-list"></div>
+            </div>
+            <select style="flex:1;" class="rep-part-qty" onchange="checkReportQtyCustom(this)">
+              <option value="${item.qty}" selected>${item.qty}</option>
+              ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}">${n}</option>`).join('')}
+              <option value="custom">自由入力...</option>
+            </select>
+            <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
+          `;
+          partsContainer.appendChild(row);
+        });
+      }
+
+      generateReportText();
+      
+      // 未使用チェック用のデータを保持して、作業報告コピー時にモーダルを表示できるようにする
+      currentUnusedData = move;
+      skipPendingMove(moveId); // 未処理リストから除外
+      alert(`✅ 顧客「${move.customer}」の移動部品を作業報告に反映しました！`);
+    }
+
+    function processStockIntegration(moveId) {
+      const move = pendingMoves.find(m => m.id === moveId);
+      if (!move) return;
+
+      const targetUser = document.getElementById(`stockAddUser-${moveId}`).value;
+
+      // globalPartsData または ローカル在庫に反映（シミュレーション）
+      move.items.forEach(item => {
+        const found = globalPartsData.find(p => `${p.id} ${p.name}` === item.part || p.id === item.part || p.name === item.part);
+        if (found) {
+          if (targetUser === '大阪事務所') found.stock_osaka += item.qty;
+          else if (targetUser === '平田') found.stock_hirata += item.qty;
+          else if (targetUser === '山本') found.stock_yamamoto += item.qty;
+          else if (targetUser === '向井') found.stock_mukai += item.qty;
+          else if (targetUser === '井阪') found.stock_isaka += item.qty;
+          else if (targetUser === '河原') found.stock_kawahara += item.qty;
+          else if (targetUser === '松井色素') found.stock_matsui += item.qty;
+        }
+      });
+
+      skipPendingMove(moveId);
+      renderStockTable();
+      alert(`✅ ${targetUser} の在庫に部品を加算しました！`);
     }
 
     // ================= 作業報告タブ関連 =================
@@ -961,12 +1184,12 @@
       document.querySelectorAll('#repCompanions input[type="checkbox"]').forEach(chk => {
         const label = chk.closest('label');
         if (chk.value === reporter) {
-          chk.checked = false;      // 選択されていたらチェックを外す
-          chk.disabled = true;      // 選択不可（無効化）にする
+          chk.checked = false;
+          chk.disabled = true;
           label.style.opacity = '0.4';
           label.style.textDecoration = 'line-through';
         } else {
-          chk.disabled = false;     // 有効化
+          chk.disabled = false;
           label.style.opacity = '1';
           label.style.textDecoration = 'none';
         }
@@ -1032,7 +1255,7 @@
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
       `;
       container.appendChild(row);
-      populateReportDropdown(row.querySelector('.part-dropdown-list'), '');
+      populateReportDropdown(row.querySelector('.rep-part-dropdown-list'), '');
       generateReportText();
     }
 
@@ -1138,6 +1361,82 @@
     function copyReportText() {
       navigator.clipboard.writeText(document.getElementById('reportPreview').innerText);
       alert("作業報告の文章をコピーしました！");
+
+      // もし移動データから取り込んだ部品があれば、未使用分チェックモーダルを開く
+      if (currentUnusedData && currentUnusedData.items && currentUnusedData.items.length > 0) {
+        openUnusedModal(currentUnusedData);
+      }
+    }
+
+    // ================= 未使用部品の個人在庫移動モーダル関連 =================
+    function openUnusedModal(moveData) {
+      const container = document.getElementById('unusedItemsFormContainer');
+      container.innerHTML = '';
+
+      // 同行メンバーリスト（報告者＋チェックされた同行者）
+      const reporter = document.getElementById('repReporter').value;
+      let activeCompanions = [reporter];
+      document.querySelectorAll('#repCompanions input:checked').forEach(el => activeCompanions.push(el.value));
+
+      // デフォルト受取人はmoveData.receiver、もしリストになければactiveCompanions[0]
+      const defaultReceiver = activeCompanions.includes(moveData.receiver) ? moveData.receiver : activeCompanions[0];
+
+      moveData.items.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.style.cssText = "margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:8px;";
+        div.innerHTML = `
+          <div><b>${item.part}</b> (依頼数量: ${item.qty})</div>
+          <div style="display:flex; gap:6px; margin-top:4px;">
+            <div style="flex:1;">
+              <label style="font-size:0.75rem;">未使用数量</label>
+              <input type="number" min="0" max="${item.qty}" value="0" class="unused-qty" data-index="${index}" style="padding:4px;">
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:0.75rem;">移動先メンバー</label>
+              <select class="unused-user" data-index="${index}" style="padding:4px;">
+                ${activeCompanions.map(m => `<option value="${m}" ${m===defaultReceiver?'selected':''}>${m}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      document.getElementById('unusedModal').style.display = 'flex';
+    }
+
+    function closeUnusedModal() {
+      document.getElementById('unusedModal').style.display = 'none';
+      currentUnusedData = null;
+    }
+
+    function submitUnusedItemsAllocation() {
+      if (!currentUnusedData) return;
+
+      const qtyInputs = document.querySelectorAll('.unused-qty');
+      const userSelects = document.querySelectorAll('.unused-user');
+
+      qtyInputs.forEach((inp, idx) => {
+        const unusedQty = Number(inp.value);
+        const targetUser = userSelects[idx].value;
+        const partName = currentUnusedData.items[idx].part;
+
+        if (unusedQty > 0) {
+          const found = globalPartsData.find(p => `${p.id} ${p.name}` === partName || p.id === partName || p.name === partName);
+          if (found) {
+            if (targetUser === '平田') found.stock_hirata += unusedQty;
+            else if (targetUser === '山本') found.stock_yamamoto += unusedQty;
+            else if (targetUser === '向井') found.stock_mukai += unusedQty;
+            else if (targetUser === '井阪') found.stock_isaka += unusedQty;
+            else if (targetUser === '河原') found.stock_kawahara += unusedQty;
+            else if (targetUser === '松井色素') found.stock_matsui += unusedQty;
+          }
+        }
+      });
+
+      renderStockTable();
+      alert("✅ 未使用部品を指定されたメンバーの個人在庫に移動しました！");
+      closeUnusedModal();
     }
 
     // ================= 個人在庫・棚卸・差異修正タブ関連 =================
