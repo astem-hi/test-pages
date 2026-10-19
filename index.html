@@ -217,7 +217,7 @@
       </div>
       <div class="map-right panel">
         <div class="section-title"><span>検索ヒット・部品一覧</span></div>
-        <div id="mapPartsList" style="max-height:600px; overflow-y:auto;">スプレッドシートから読み込み中...</div>
+        <div id="mapPartsList" style="max-height:600px; overflow-y:auto;">スプレッドシートから同期中...</div>
       </div>
     </div>
   </div>
@@ -225,10 +225,13 @@
   <!-- タブ2: 倉庫移動 -->
   <div id="tab-move" class="tab-content">
     <div class="panel">
-      <div class="section-title"><span>🚚 倉庫移動依頼フォーム</span></div>
+      <div class="section-title">
+        <span>🚚 倉庫移動依頼フォーム</span>
+        <button class="btn btn-secondary btn-sm" onclick="resetForm('move')">🔄 入力リセット</button>
+      </div>
       
       <label>依頼種別</label>
-      <select id="moveType" onchange="onMoveTypeChange()">
+      <select id="moveType" onchange="onMoveTypeChange(); saveDraft('move');">
         <option value="倉庫移動">倉庫移動</option>
         <option value="通常販売で出荷">通常販売で出荷</option>
         <option value="大阪事務所在庫から発送（部品移動のみ）">大阪事務所在庫から発送（部品移動のみ）</option>
@@ -238,11 +241,11 @@
 
       <label>商品・数量（検索対応）</label>
       <div id="moveItemsContainer"></div>
-      <button class="btn btn-secondary btn-sm" id="addItemBtn" onclick="addMoveItemRow()" style="margin-bottom:10px;">＋ 商品行を追加</button>
+      <button class="btn btn-secondary btn-sm" id="addItemBtn" onclick="addMoveItemRow(); saveDraft('move');" style="margin-bottom:10px;">＋ 商品行を追加</button>
 
       <div id="receiverSection" style="display:none;">
         <label>受取責任者 <span style="color:red;">*必須</span></label>
-        <select id="moveReceiver" onchange="generateMoveText()">
+        <select id="moveReceiver" onchange="generateMoveText(); saveDraft('move');">
           <option value="" disabled selected>選択してください</option>
           <option value="平田">平田</option>
           <option value="山本">山本</option>
@@ -254,43 +257,43 @@
 
       <label>出荷日</label>
       <div class="grid-2col">
-        <select id="moveShippingDate" onchange="toggleCustomDate('moveShippingDate', 'moveShippingCustom')">
+        <select id="moveShippingDate" onchange="toggleCustomDate('moveShippingDate', 'moveShippingCustom'); saveDraft('move');">
           <option value="本日">本日</option>
           <option value="日付指定">日付指定</option>
         </select>
-        <input type="date" id="moveShippingCustom" style="display:none;" onchange="generateMoveText()">
+        <input type="date" id="moveShippingCustom" style="display:none;" onchange="generateMoveText(); saveDraft('move');">
       </div>
 
       <label>到着希望</label>
       <div class="grid-2col">
-        <select id="moveArrivalDate" onchange="toggleCustomDate('moveArrivalDate', 'moveArrivalCustom')">
+        <select id="moveArrivalDate" onchange="toggleCustomDate('moveArrivalDate', 'moveArrivalCustom'); saveDraft('move');">
           <option value="明日AM">明日AM</option>
           <option value="日付指定">日付指定</option>
         </select>
-        <input type="date" id="moveArrivalCustom" style="display:none;" onchange="generateMoveText()">
+        <input type="date" id="moveArrivalCustom" style="display:none;" onchange="generateMoveText(); saveDraft('move');">
       </div>
       <div id="dateErrorMsg" class="error-msg">⚠️ 到着希望日は出荷日以降の日付を指定してください。</div>
 
       <div id="destSection">
         <label>送り先 <span id="destRequiredMark" style="color:red; display:none;">*必須</span></label>
-        <select id="moveDestType" onchange="updateMoveDest()">
+        <select id="moveDestType" onchange="updateMoveDest(); saveDraft('move');">
           <option value="大阪事務所">大阪事務所</option>
           <option value="松井色素">松井色素</option>
           <option value="自由記述">お客様名（自由記述）</option>
         </select>
-        <input type="text" id="moveDestCustom" placeholder="お客様名を入力 (必須)" style="display:none;" oninput="generateMoveText()">
+        <input type="text" id="moveDestCustom" placeholder="お客様名を入力 (必須)" style="display:none;" oninput="generateMoveText(); saveDraft('move');">
       </div>
 
       <label style="display:flex; align-items:center; gap:6px; margin: 8px 0;">
-        <input type="checkbox" id="moveYashiroToggle" style="width:auto; margin:0;" onchange="generateMoveText()"> 八代さんへ連絡済
+        <input type="checkbox" id="moveYashiroToggle" style="width:auto; margin:0;" onchange="generateMoveText(); saveDraft('move');"> 八代さんへ連絡済
       </label>
 
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; background:#edf2f7; padding:8px; border-radius:6px;">
         <label style="margin:0; font-size:0.85rem;">備考欄を追加する</label>
-        <input type="checkbox" id="remarksToggle" style="width:auto; margin:0; transform:scale(1.3);" onchange="toggleRemarksBox()">
+        <input type="checkbox" id="remarksToggle" style="width:auto; margin:0; transform:scale(1.3);" onchange="toggleRemarksBox(); saveDraft('move');">
       </div>
       <div id="remarksBox" style="display:none;">
-        <textarea id="moveRemarks" placeholder="備考があれば入力" oninput="generateMoveText()"></textarea>
+        <textarea id="moveRemarks" placeholder="備考があれば入力" oninput="generateMoveText(); saveDraft('move');"></textarea>
       </div>
 
       <label>生成されたLINEテキスト</label>
@@ -306,7 +309,10 @@
   <!-- タブ3: 作業報告 -->
   <div id="tab-report" class="tab-content">
     <div class="panel">
-      <div class="section-title"><span>📝 作業報告フォーム</span></div>
+      <div class="section-title">
+        <span>📝 作業報告フォーム</span>
+        <button class="btn btn-secondary btn-sm" onclick="resetForm('report')">🔄 入力リセット</button>
+      </div>
 
       <div id="reportUnprocessedContainer" style="margin-bottom: 12px; display:none;">
         <div style="background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:8px;">
@@ -318,11 +324,11 @@
       <div class="grid-2col">
         <div>
           <label>処理日</label>
-          <input type="date" id="repDate">
+          <input type="date" id="repDate" onchange="saveDraft('report')">
         </div>
         <div>
           <label>報告者</label>
-          <select id="repReporter" onchange="onReporterChange()">
+          <select id="repReporter" onchange="onReporterChange(); saveDraft('report');">
             <option value="平田">平田</option>
             <option value="山本">山本</option>
             <option value="向井">向井</option>
@@ -335,22 +341,22 @@
 
       <label>同行メンバー (複数選択可)</label>
       <div id="repCompanions" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; font-size:0.85rem;">
-        <label><input type="checkbox" value="平田" onchange="generateReportText()"> 平田</label>
-        <label><input type="checkbox" value="山本" onchange="generateReportText()"> 山本</label>
-        <label><input type="checkbox" value="向井" onchange="generateReportText()"> 向井</label>
-        <label><input type="checkbox" value="河原" onchange="generateReportText()"> 河原</label>
-        <label><input type="checkbox" value="井阪" onchange="generateReportText()"> 井阪</label>
-        <label><input type="checkbox" value="松井色素" onchange="generateReportText()"> 松井色素</label>
+        <label><input type="checkbox" value="平田" onchange="generateReportText(); saveDraft('report');"> 平田</label>
+        <label><input type="checkbox" value="山本" onchange="generateReportText(); saveDraft('report');"> 山本</label>
+        <label><input type="checkbox" value="向井" onchange="generateReportText(); saveDraft('report');"> 向井</label>
+        <label><input type="checkbox" value="河原" onchange="generateReportText(); saveDraft('report');"> 河原</label>
+        <label><input type="checkbox" value="井阪" onchange="generateReportText(); saveDraft('report');"> 井阪</label>
+        <label><input type="checkbox" value="松井色素" onchange="generateReportText(); saveDraft('report');"> 松井色素</label>
       </div>
 
       <label>顧客名</label>
-      <input type="text" id="repCustomer" placeholder="顧客名を入力" oninput="generateReportText()">
+      <input type="text" id="repCustomer" placeholder="顧客名を入力" oninput="generateReportText(); saveDraft('report');">
 
       <div id="machineSectionsContainer"></div>
-      <button class="btn btn-secondary btn-sm" onclick="addMachineSection()" style="margin-bottom:10px;">＋ 別の機器の作業を追加</button>
+      <button class="btn btn-secondary btn-sm" onclick="addMachineSection(); saveDraft('report');" style="margin-bottom:10px;">＋ 別の機器の作業を追加</button>
 
       <label>全体の備考・連絡事項</label>
-      <textarea id="repOverallRemarks" placeholder="全体の備考を入力" oninput="generateReportText()"></textarea>
+      <textarea id="repOverallRemarks" placeholder="全体の備考を入力" oninput="generateReportText(); saveDraft('report');"></textarea>
 
       <label>LINE報告プレビュー</label>
       <div class="preview-box" id="reportPreview"></div>
@@ -386,7 +392,7 @@
             </tr>
           </thead>
           <tbody id="stockTableBody">
-            <tr><td colspan="10" style="text-align:center;">スプレッドシートから読み込み中...</td></tr>
+            <tr><td colspan="10" style="text-align:center;">スプレッドシートから同期中...</td></tr>
           </tbody>
         </table>
       </div>
@@ -464,12 +470,12 @@
   </div>
 
   <script>
-    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmwX9ZCKIEMzYwQa2_OXtSk9gPMy6_l_KhmKvDUS8rP-JeiZxCz7nVzo4ZXR8lwGdaM7S-1J4rNyF3/pub?output=csv";
+    // ▼▼▼ ここに先ほどコピーしたGASの「ウェブアプリのURL」を貼り付けてください ▼▼▼
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0xHS5f9H-iZLLTGobrMp59dF5JUZtL6BcNHwVMIiY9gSMS75d3ZoZzsHcFfGhpP9u/exec";
 
     let globalPartsData = [];
-    let diffLogs = JSON.parse(localStorage.getItem('diff_logs') || '[]');
-    let pendingMoves = JSON.parse(localStorage.getItem('pending_moves') || '[]');
-    let localStockAdjustments = JSON.parse(localStorage.getItem('local_stock_adjustments') || '{}');
+    let diffLogs = [];
+    let pendingMoves = [];
     let currentUnusedData = null;
 
     const ALL_MEMBERS = ['平田', '山本', '向井', '井阪', '河原', '松井色素'];
@@ -481,6 +487,8 @@
       document.getElementById('tab-' + tabId).classList.add('active');
       document.getElementById('btn-' + tabId).classList.add('active');
       
+      localStorage.setItem('active_tab', tabId);
+
       if (tabId === 'stock') {
         renderStockTable();
         renderUnprocessedLists();
@@ -494,37 +502,51 @@
     window.addEventListener('DOMContentLoaded', async () => {
       initMapGrid();
       document.getElementById('repDate').valueAsDate = new Date();
-      onReporterChange();
-      await fetchSheetData();
-      renderUnprocessedLists();
-      renderDiffLogs();
+      
+      // 保存されていたタブを開く（デフォルトはmap）
+      const savedTab = localStorage.getItem('active_tab') || 'map';
+      switchTab(savedTab);
+
+      await fetchAllDataFromGAS();
+      loadDraft('move');
+      loadDraft('report');
     });
 
-    async function fetchSheetData() {
+    // GASから全データを取得
+    async function fetchAllDataFromGAS() {
       try {
-        const response = await fetch(SHEET_CSV_URL);
-        if (!response.ok) throw new Error(`HTTPエラー! ステータス: ${response.status}`);
-        const text = await response.text();
-        if (text.trim().startsWith("<!DOCTYPE html>")) {
-          throw new Error("取得したデータがHTMLになっています。スプレッドシートの公開設定を確認してください。");
+        const response = await fetch(GAS_API_URL + "?action=getData");
+        const json = await response.json();
+        if (json.status === "success") {
+          globalPartsData = parseStockData(json.stock);
+          diffLogs = json.logs || [];
+          pendingMoves = json.pending || [];
+
+          renderMapList(globalPartsData);
+          renderStockTable();
+          refreshDynamicSelects();
+          populateDiffPartSelect();
+          renderUnprocessedLists();
+          renderDiffLogs();
         }
-
-        globalPartsData = parseCSV(text);
-        if (globalPartsData.length === 0) {
-          showError("⚠️ データが0件です。");
-          return;
-        }
-
-        renderMapList(globalPartsData);
-        renderStockTable();
-        refreshDynamicSelects();
-        populateDiffPartSelect();
-        renderUnprocessedLists();
-
-      } catch (error) {
-        console.error("読み込み失敗:", error);
-        showError(`❌ 読み込み失敗: ${error.message}`);
+      } catch (err) {
+        console.error("データ同期失敗:", err);
       }
+    }
+
+    function parseStockData(stockRows) {
+      return stockRows.map((obj, i) => ({
+        id: obj['id'] || obj['品番'] || ('P-' + i),
+        name: obj['name'] || obj['品名'] || '名称不明',
+        location: obj['location'] || obj['棚番号'] || '',
+        stock_osaka: Number(obj['stock_osaka'] || obj['大阪事務所在庫数'] || obj['大阪'] || 0),
+        stock_hirata: Number(obj['stock_hirata'] || obj['平田'] || 0),
+        stock_yamamoto: Number(obj['stock_yamamoto'] || obj['山本'] || 0),
+        stock_mukai: Number(obj['stock_mukai'] || obj['向井'] || 0),
+        stock_isaka: Number(obj['stock_isaka'] || obj['井阪'] || 0),
+        stock_kawahara: Number(obj['stock_kawahara'] || obj['河原'] || 0),
+        stock_matsui: Number(obj['stock_matsui'] || obj['松井色素'] || obj['松井'] || 0)
+      }));
     }
 
     function showError(msg) {
@@ -532,60 +554,81 @@
       document.getElementById('stockTableBody').innerHTML = `<tr><td colspan="10" style="color:#d9534f; text-align:center;">${msg}</td></tr>`;
     }
 
-    function parseCSV(text) {
-      const lines = text.trim().split(/\r?\n/);
-      if (lines.length <= 1) return [];
-      
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-      const items = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const rowString = lines[i];
-        if (!rowString.trim()) continue;
-
-        const v = rowString.split(',').map(val => val.trim().replace(/^"|"$/g, ''));
-        const obj = {};
-        headers.forEach((h, idx) => { obj[h] = v[idx] || ''; });
-
-        const partId = obj['id'] || obj['品番'] || ('P-' + i);
-        const adj = localStockAdjustments[partId] || {};
-
-        items.push({
-          id: partId,
-          name: obj['name'] || obj['品名'] || '名称不明',
-          location: obj['location'] || obj['棚番号'] || '',
-          stock_osaka: Number(obj['stock_osaka'] || obj['大阪事務所在庫数'] || obj['大阪'] || 0) + (adj.stock_osaka || 0),
-          stock_hirata: Number(obj['stock_hirata'] || obj['平田'] || 0) + (adj.stock_hirata || 0),
-          stock_yamamoto: Number(obj['stock_yamamoto'] || obj['山本'] || 0) + (adj.stock_yamamoto || 0),
-          stock_mukai: Number(obj['stock_mukai'] || obj['向井'] || 0) + (adj.stock_mukai || 0),
-          stock_isaka: Number(obj['stock_isaka'] || obj['井阪'] || 0) + (adj.stock_isaka || 0),
-          stock_kawahara: Number(obj['stock_kawahara'] || obj['河原'] || 0) + (adj.stock_kawahara || 0),
-          stock_matsui: Number(obj['stock_matsui'] || obj['松井色素'] || obj['松井'] || 0) + (adj.stock_matsui || 0)
-        });
+    // 下書き保存・復元・リセット機能
+    function saveDraft(formName) {
+      if (formName === 'move') {
+        const data = {
+          type: document.getElementById('moveType').value,
+          receiver: document.getElementById('moveReceiver').value,
+          shippingDate: document.getElementById('moveShippingDate').value,
+          shippingCustom: document.getElementById('moveShippingCustom').value,
+          arrivalDate: document.getElementById('moveArrivalDate').value,
+          arrivalCustom: document.getElementById('moveArrivalCustom').value,
+          destType: document.getElementById('moveDestType').value,
+          destCustom: document.getElementById('moveDestCustom').value,
+          yashiro: document.getElementById('moveYashiroToggle').checked,
+          remarksToggle: document.getElementById('remarksToggle').checked,
+          remarks: document.getElementById('moveRemarks').value
+        };
+        localStorage.setItem('draft_move', JSON.stringify(data));
+      } else if (formName === 'report') {
+        const data = {
+          date: document.getElementById('repDate').value,
+          reporter: document.getElementById('repReporter').value,
+          customer: document.getElementById('repCustomer').value,
+          overallRemarks: document.getElementById('repOverallRemarks').value
+        };
+        localStorage.setItem('draft_report', JSON.stringify(data));
       }
-      return items;
     }
 
-    function addStockAdjustment(partId, user, qty) {
-      if (!localStockAdjustments[partId]) localStockAdjustments[partId] = {};
-      
-      let key = 'stock_osaka';
-      if (user === '平田') key = 'stock_hirata';
-      else if (user === '山本') key = 'stock_yamamoto';
-      else if (user === '向井') key = 'stock_mukai';
-      else if (user === '井阪') key = 'stock_isaka';
-      else if (user === '河原') key = 'stock_kawahara';
-      else if (user === '松井色素' || user === '松井') key = 'stock_matsui';
-
-      localStockAdjustments[partId][key] = (localStockAdjustments[partId][key] || 0) + qty;
-      localStorage.setItem('local_stock_adjustments', JSON.stringify(localStockAdjustments));
+    function loadDraft(formName) {
+      if (formName === 'move') {
+        const json = localStorage.getItem('draft_move');
+        if (!json) return;
+        try {
+          const d = JSON.parse(json);
+          if (d.type) document.getElementById('moveType').value = d.type;
+          onMoveTypeChange();
+          if (d.receiver) document.getElementById('moveReceiver').value = d.receiver;
+          if (d.shippingDate) document.getElementById('moveShippingDate').value = d.shippingDate;
+          toggleCustomDate('moveShippingDate', 'moveShippingCustom');
+          if (d.shippingCustom) document.getElementById('moveShippingCustom').value = d.shippingCustom;
+          if (d.arrivalDate) document.getElementById('moveArrivalDate').value = d.arrivalDate;
+          toggleCustomDate('moveArrivalDate', 'moveArrivalCustom');
+          if (d.arrivalCustom) document.getElementById('moveArrivalCustom').value = d.arrivalCustom;
+          if (d.destType) document.getElementById('moveDestType').value = d.destType;
+          updateMoveDest();
+          if (d.destCustom) document.getElementById('moveDestCustom').value = d.destCustom;
+          if (d.yashiro !== undefined) document.getElementById('moveYashiroToggle').checked = d.yashiro;
+          if (d.remarksToggle !== undefined) document.getElementById('remarksToggle').checked = d.remarksToggle;
+          toggleRemarksBox();
+          if (d.remarks) document.getElementById('moveRemarks').value = d.remarks;
+          generateMoveText();
+        } catch(e) {}
+      }
     }
 
-    function refreshDynamicSelects() {
-      onMoveTypeChange();
-      const repContainer = document.getElementById('machineSectionsContainer');
-      repContainer.innerHTML = '';
-      addMachineSection();
+    function resetForm(formName) {
+      if (confirm("入力中の内容をリセットしてもよろしいですか？")) {
+        localStorage.removeItem('draft_' + formName);
+        if (formName === 'move') {
+          document.getElementById('moveType').value = '倉庫移動';
+          onMoveTypeChange();
+          document.getElementById('moveItemsContainer').innerHTML = '';
+          addMoveItemRow();
+          document.getElementById('moveYashiroToggle').checked = false;
+          document.getElementById('remarksToggle').checked = false;
+          toggleRemarksBox();
+          generateMoveText();
+        } else if (formName === 'report') {
+          document.getElementById('repDate').valueAsDate = new Date();
+          document.getElementById('repCustomer').value = '';
+          document.getElementById('repOverallRemarks').value = '';
+          document.getElementById('machineSectionsContainer').innerHTML = '';
+          addMachineSection();
+        }
+      }
     }
 
     function normalizeSearchStr(str) {
@@ -655,7 +698,8 @@
       items.forEach(item => {
         const div = document.createElement('div');
         div.style.cssText = "padding:6px; border-bottom:1px solid #eee; cursor:pointer;";
-        div.innerHTML = `<b>${item.id} ${item.name}</b> <span style="font-size:0.8rem; color:#666;">(棚: ${item.location})</span>`;
+        // 在庫数を併記
+        div.innerHTML = `<b>${item.id} ${item.name}</b> <span style="font-size:0.75rem; color:#007bff;">(大阪:${item.stock_osaka} 平:${item.stock_hirata} 山:${item.stock_yamamoto} 向:${item.stock_mukai} 井:${item.stock_isaka} 河:${item.stock_kawahara} 松:${item.stock_matsui})</span><br><span style="font-size:0.8rem; color:#666;">棚: ${item.location}</span>`;
         div.onclick = () => {
           document.getElementById('mapSearchInput').value = item.location;
           handleMapSearch();
@@ -683,16 +727,7 @@
         </div>
         <select style="flex:1;" class="move-part-qty" onchange="checkMoveQtyCustom(this)">
           <option value="" disabled ${!presetQty ? 'selected' : ''}>数量</option>
-          <option value="1" ${presetQty==1?'selected':''}>1</option>
-          <option value="2" ${presetQty==2?'selected':''}>2</option>
-          <option value="3" ${presetQty==3?'selected':''}>3</option>
-          <option value="4" ${presetQty==4?'selected':''}>4</option>
-          <option value="5" ${presetQty==5?'selected':''}>5</option>
-          <option value="6" ${presetQty==6?'selected':''}>6</option>
-          <option value="7" ${presetQty==7?'selected':''}>7</option>
-          <option value="8" ${presetQty==8?'selected':''}>8</option>
-          <option value="9" ${presetQty==9?'selected':''}>9</option>
-          <option value="10" ${presetQty==10?'selected':''}>10</option>
+          ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${presetQty==n?'selected':''}>${n}</option>`).join('')}
           <option value="custom" ${presetQty>10?'selected':''}>自由入力...</option>
         </select>
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateMoveText();">削除</button>
@@ -751,7 +786,8 @@
       filtered.forEach(p => {
         const item = document.createElement('div');
         item.className = 'part-dropdown-item';
-        item.innerHTML = `<b>${p.id} ${p.name}</b>`;
+        // 個人在庫数を併記
+        item.innerHTML = `<b>${p.id} ${p.name}</b> <span style="font-size:0.75rem; color:#007bff;">(大阪:${p.stock_osaka} 平:${p.stock_hirata} 山:${p.stock_yamamoto})</span>`;
         item.onclick = () => {
           const input = listEl.previousElementSibling;
           input.value = `${p.id} ${p.name}`;
@@ -800,9 +836,7 @@
       }
 
       if (type === '大阪事務所在庫から発送（部品移動のみ）' || type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
-        destSelect.innerHTML = `
-          <option value="自由記述">お客様名（自由記述）</option>
-        `;
+        destSelect.innerHTML = `<option value="自由記述">お客様名（自由記述）</option>`;
         destSelect.value = '自由記述';
       } else if (type === '通常販売で出荷') {
         destSelect.innerHTML = `
@@ -858,9 +892,7 @@
     function getEffectiveShippingDate() {
       const sDateMode = document.getElementById('moveShippingDate').value;
       const sDateVal = document.getElementById('moveShippingCustom').value;
-      if (sDateMode === '日付指定' && sDateVal) {
-        return new Date(sDateVal);
-      }
+      if (sDateMode === '日付指定' && sDateVal) return new Date(sDateVal);
       const today = new Date();
       today.setHours(0,0,0,0);
       return today;
@@ -869,9 +901,7 @@
     function getEffectiveArrivalDate() {
       const aDateMode = document.getElementById('moveArrivalDate').value;
       const aDateVal = document.getElementById('moveArrivalCustom').value;
-      if (aDateMode === '日付指定' && aDateVal) {
-        return new Date(aDateVal);
-      }
+      if (aDateMode === '日付指定' && aDateVal) return new Date(aDateVal);
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       tomorrow.setHours(0,0,0,0);
@@ -912,27 +942,15 @@
 
       const aDateMode = document.getElementById('moveArrivalDate').value;
       const aDateVal = document.getElementById('moveArrivalCustom').value;
-      
-      let aDate = '';
-      if (aDateMode === '日付指定' && aDateVal) {
-        aDate = `${formatDateStr(aDateVal)}(最速配達時間)`;
-      } else {
-        aDate = getTomorrowStrAM();
-      }
+      let aDate = (aDateMode === '日付指定' && aDateVal) ? `${formatDateStr(aDateVal)}(最速配達時間)` : getTomorrowStrAM();
 
       const yashiro = document.getElementById('moveYashiroToggle').checked ? "八代さんへ連絡済です。\n" : "";
       
       let remarksText = "";
-      const isRemarksOn = document.getElementById('remarksToggle').checked;
-      if (isRemarksOn) {
+      if (document.getElementById('remarksToggle').checked) {
         const remarksVal = document.getElementById('moveRemarks').value.trim();
-        if (remarksVal) {
-          remarksText = `\n\n(備考：${remarksVal})`;
-        }
+        if (remarksVal) remarksText = `\n\n(備考：${remarksVal})`;
       }
-
-      let headerLine = "";
-      let middleLine = "";
 
       const destType = document.getElementById('moveDestType').value;
       let destName = destType;
@@ -948,6 +966,9 @@
         actionWord = "発送";
       }
 
+      let headerLine = "お疲れ様です。倉庫移動をお願いいたします。";
+      let middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n倉庫移動扱いでお願いいたします。`;
+
       if (type === 'ヘッドクリーナー在庫落とし') {
         headerLine = "お疲れ様です。在庫落とし処理をお願いいたします。";
         middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n在庫落とし扱いでお願いいたします。`;
@@ -961,17 +982,13 @@
       } else if (type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
         headerLine = "お疲れ様です。大阪事務所から売り立てで出荷をお願いいたします。";
         middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n売り立て処理扱いでお願いいたします。`;
-      } else {
-        headerLine = "お疲れ様です。倉庫移動をお願いいたします。";
-        middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n倉庫移動扱いでお願いいたします。`;
       }
 
       let text = `${headerLine}\n\n${itemsText}\n${middleLine}\n${yashiro}よろしくお願いいたします。${remarksText}`;
-
       document.getElementById('movePreview').innerText = text;
     }
 
-    function copyMoveTextAndSet() {
+    async function copyMoveTextAndSet() {
       const type = document.getElementById('moveType').value;
       const receiverSelect = document.getElementById('moveReceiver');
       if ((type === '倉庫移動' || type === '大阪事務所在庫から発送（部品移動のみ）') && receiverSelect && !receiverSelect.value) {
@@ -1004,9 +1021,7 @@
         const qtyInput = row.querySelector('.move-part-qty') || row.querySelector('.move-part-qty-input');
         const name = nameInput ? nameInput.value.trim() : '';
         const qty = qtyInput ? Number(qtyInput.value) : 0;
-        if(name && qty > 0) {
-          items.push({ part: name, qty: qty });
-        }
+        if(name && qty > 0) items.push({ part: name, qty: qty });
       });
 
       if (items.length === 0) {
@@ -1016,14 +1031,7 @@
 
       const aDateMode = document.getElementById('moveArrivalDate').value;
       const aDateVal = document.getElementById('moveArrivalCustom').value;
-      let arrivalDateStr = '';
-      if (aDateMode === '日付指定' && aDateVal) {
-        arrivalDateStr = aDateVal;
-      } else {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        arrivalDateStr = tomorrow.toISOString().slice(0, 10);
-      }
+      let arrivalDateStr = (aDateMode === '日付指定' && aDateVal) ? aDateVal : new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
       const now = new Date();
       const instructionDateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
@@ -1036,21 +1044,23 @@
         receiver: receiverSelect ? receiverSelect.value : '（指定なし）',
         instructionDate: instructionDateStr,
         arrivalDate: arrivalDateStr,
-        items: items
+        itemsJson: JSON.stringify(items),
+        status: 'pending'
       };
 
-      pendingMoves.push(moveRecord);
-      localStorage.setItem('pending_moves', JSON.stringify(pendingMoves));
+      // GASへ未処理移動を保存
+      await fetch(GAS_API_URL + "?action=savePending&" + new URLSearchParams(moveRecord));
 
       navigator.clipboard.writeText(document.getElementById('movePreview').innerText);
-      alert("📋 文章をコピーし、部品移動データをセットしました！到着予定日以降に未処理リストに表示されます。");
-      renderUnprocessedLists();
+      localStorage.removeItem('draft_move');
+      alert("📋 文章をコピーし、全員の端末の未処理リストにセットしました！");
+      await fetchAllDataFromGAS();
     }
 
     // ================= 未処理リスト・在庫反映 =================
     function renderUnprocessedLists() {
       const todayStr = new Date().toISOString().slice(0, 10);
-      const availableMoves = pendingMoves.filter(m => m.arrivalDate <= todayStr);
+      const availableMoves = pendingMoves.filter(m => m.status === 'pending' && m.arrivalDate <= todayStr);
 
       const reportContainer = document.getElementById('reportUnprocessedContainer');
       const reportList = document.getElementById('reportUnprocessedList');
@@ -1060,14 +1070,16 @@
         reportContainer.style.display = 'block';
         reportList.innerHTML = '';
         reportMoves.forEach((m) => {
+          let itemsParsed = [];
+          try { itemsParsed = JSON.parse(m.itemsJson); } catch(e){}
           const div = document.createElement('div');
           div.className = 'unproc-card';
           div.innerHTML = `
             <div><b>顧客: ${m.customer}</b> (指示日: ${m.instructionDate} / 到着日: ${m.arrivalDate} / 責任者: ${m.receiver})</div>
-            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${m.items.map(i => `・${i.part} ×${i.qty}`).join('<br>')}</div>
+            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} ×${i.qty}`).join('<br>')}</div>
             <div style="display:flex; gap:6px; margin-top:6px;">
               <button class="btn btn-success btn-sm" onclick="processReportIntegration('${m.id}')">この内容で作業報告と紐付け</button>
-              <button class="btn btn-secondary btn-sm" onclick="skipPendingMove('${m.id}')">スルーする</button>
+              <button class="btn btn-secondary btn-sm" onclick="updatePendingStatus('${m.id}', 'skipped')">スルーする</button>
             </div>
           `;
           reportList.appendChild(div);
@@ -1083,11 +1095,13 @@
         stockPanel.style.display = 'block';
         stockList.innerHTML = '';
         availableMoves.forEach((m) => {
+          let itemsParsed = [];
+          try { itemsParsed = JSON.parse(m.itemsJson); } catch(e){}
           const div = document.createElement('div');
           div.className = 'unproc-card';
           div.innerHTML = `
             <div><b>[${m.destination}] ${m.customer}</b> (指示日: ${m.instructionDate} / 責任者: ${m.receiver})</div>
-            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${m.items.map(i => `・${i.part} ×${i.qty}`).join('<br>')}</div>
+            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} ×${i.qty}`).join('<br>')}</div>
             <div style="display:flex; gap:6px; margin-top:6px; align-items:center;">
               <select id="stockAddUser-${m.id}" style="width:auto; margin:0; font-size:0.8rem; padding:4px;">
                 <option value="大阪事務所">大阪事務所</option>
@@ -1096,7 +1110,7 @@
                 </optgroup>
               </select>
               <button class="btn btn-success btn-sm" onclick="processStockIntegration('${m.id}')">指定先へ在庫加算</button>
-              <button class="btn btn-secondary btn-sm" onclick="skipPendingMove('${m.id}')">削除/スルー</button>
+              <button class="btn btn-secondary btn-sm" onclick="updatePendingStatus('${m.id}', 'skipped')">スルーする</button>
             </div>
           `;
           stockList.appendChild(div);
@@ -1106,23 +1120,27 @@
       }
     }
 
-    function skipPendingMove(moveId) {
-      pendingMoves = pendingMoves.filter(m => m.id !== moveId);
-      localStorage.setItem('pending_moves', JSON.stringify(pendingMoves));
+    async function updatePendingStatus(moveId, newStatus) {
+      const m = pendingMoves.find(item => item.id === moveId);
+      if (!m) return;
+      m.status = newStatus;
+      await fetch(GAS_API_URL + `?action=savePending&id=${m.id}&type=${encodeURIComponent(m.type)}&customer=${encodeURIComponent(m.customer)}&destination=${encodeURIComponent(m.destination)}&receiver=${encodeURIComponent(m.receiver)}&instructionDate=${encodeURIComponent(m.instructionDate)}&arrivalDate=${encodeURIComponent(m.arrivalDate)}&itemsJson=${encodeURIComponent(m.itemsJson)}&status=${newStatus}`);
       renderUnprocessedLists();
     }
 
-    function processReportIntegration(moveId) {
+    async function processReportIntegration(moveId) {
       const move = pendingMoves.find(m => m.id === moveId);
       if (!move) return;
 
       document.getElementById('repCustomer').value = move.customer;
+      let itemsParsed = [];
+      try { itemsParsed = JSON.parse(move.itemsJson); } catch(e){}
 
       const machineSecs = document.querySelectorAll('.machine-section');
       if (machineSecs.length > 0) {
         const partsContainer = machineSecs[0].querySelector('.rep-parts-container');
         partsContainer.innerHTML = '';
-        move.items.forEach(item => {
+        itemsParsed.forEach(item => {
           const row = document.createElement('div');
           row.className = 'dynamic-row';
           row.innerHTML = `
@@ -1142,35 +1160,30 @@
       }
 
       generateReportText();
-      currentUnusedData = move;
-      skipPendingMove(moveId);
+      currentUnusedData = { ...move, items: itemsParsed };
+      await updatePendingStatus(moveId, 'processed');
       alert(`✅ 顧客「${move.customer}」の移動部品を作業報告に反映しました！`);
     }
 
-    function processStockIntegration(moveId) {
+    async function processStockIntegration(moveId) {
       const move = pendingMoves.find(m => m.id === moveId);
       if (!move) return;
 
       const targetUser = document.getElementById(`stockAddUser-${moveId}`).value;
+      let itemsParsed = [];
+      try { itemsParsed = JSON.parse(move.itemsJson); } catch(e){}
 
-      move.items.forEach(item => {
+      for (let item of itemsParsed) {
         let partId = item.part.split(' ')[0];
         const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.part);
         if (found) {
-          addStockAdjustment(found.id, targetUser, item.qty);
-          if (targetUser === '大阪事務所') found.stock_osaka += item.qty;
-          else if (targetUser === '平田') found.stock_hirata += item.qty;
-          else if (targetUser === '山本') found.stock_yamamoto += item.qty;
-          else if (targetUser === '向井') found.stock_mukai += item.qty;
-          else if (targetUser === '井阪') found.stock_isaka += item.qty;
-          else if (targetUser === '河原') found.stock_kawahara += item.qty;
-          else if (targetUser === '松井色素' || targetUser === '松井') found.stock_matsui += item.qty;
+          await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(targetUser)}&qtyDelta=${item.qty}`);
         }
-      });
+      }
 
-      skipPendingMove(moveId);
-      renderStockTable();
-      alert(`✅ ${targetUser} の在庫に部品を加算しました！`);
+      await updatePendingStatus(moveId, 'processed');
+      alert(`✅ 指定先(${targetUser})の在庫に加算しました！`);
+      await fetchAllDataFromGAS();
     }
 
     // ================= 作業報告タブ関連 =================
@@ -1199,12 +1212,12 @@
       div.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <b>機器別作業内容</b>
-          <button class="btn btn-danger btn-sm" onclick="this.closest('.machine-section').remove(); generateReportText();">削除</button>
+          <button class="btn btn-danger btn-sm" onclick="this.closest('.machine-section').remove(); generateReportText(); saveDraft('report');">削除</button>
         </div>
         <div class="grid-2col">
           <div>
             <label>種別</label>
-            <select class="rep-m-type" onchange="generateReportText()">
+            <select class="rep-m-type" onchange="generateReportText(); saveDraft('report');">
               <option value="プリンター">プリンター</option>
               <option value="ドライヤー">ドライヤー</option>
               <option value="吸煙機">吸煙機</option>
@@ -1213,18 +1226,18 @@
           </div>
           <div>
             <label>号機 / 機器名</label>
-            <input type="text" class="rep-m-name" placeholder="例: 1号機" oninput="generateReportText()">
+            <input type="text" class="rep-m-name" placeholder="例: 1号機" oninput="generateReportText(); saveDraft('report');">
           </div>
         </div>
         <label>内容</label>
-        <input type="text" class="rep-m-content" placeholder="作業内容" oninput="generateReportText()">
+        <input type="text" class="rep-m-content" placeholder="作業内容" oninput="generateReportText(); saveDraft('report');">
         <label>対応</label>
-        <input type="text" class="rep-m-action" placeholder="対応内容" oninput="generateReportText()">
+        <input type="text" class="rep-m-action" placeholder="対応内容" oninput="generateReportText(); saveDraft('report');">
         <label>使用部品（検索・自由記入対応）</label>
         <div class="rep-parts-container"></div>
-        <button class="btn btn-secondary btn-sm" onclick="addReportPartRow(this)">＋ 部品を追加</button>
+        <button class="btn btn-secondary btn-sm" onclick="addReportPartRow(this); saveDraft('report');">＋ 部品を追加</button>
         <label style="margin-top:6px;">機器別備考</label>
-        <input type="text" class="rep-m-remarks" placeholder="特記事項があれば" oninput="generateReportText()">
+        <input type="text" class="rep-m-remarks" placeholder="特記事項があれば" oninput="generateReportText(); saveDraft('report');">
       `;
       container.appendChild(div);
       generateReportText();
@@ -1241,10 +1254,7 @@
         </div>
         <select style="flex:1;" class="rep-part-qty" onchange="checkReportQtyCustom(this)">
           <option value="" disabled selected>数量</option>
-          <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-          <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
-          <option value="10">10</option>
+          ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}">${n}</option>`).join('')}
           <option value="custom">自由入力...</option>
         </select>
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
@@ -1290,7 +1300,8 @@
       filtered.forEach(p => {
         const item = document.createElement('div');
         item.className = 'part-dropdown-item';
-        item.innerHTML = `<b>${p.id} ${p.name}</b>`;
+        // 個人在庫数を併記
+        item.innerHTML = `<b>${p.id} ${p.name}</b> <span style="font-size:0.75rem; color:#007bff;">(大阪:${p.stock_osaka} 平:${p.stock_hirata} 山:${p.stock_yamamoto})</span>`;
         item.onclick = () => {
           const input = listEl.previousElementSibling;
           input.value = `${p.id} ${p.name}`;
@@ -1355,6 +1366,7 @@
 
     function copyReportText() {
       navigator.clipboard.writeText(document.getElementById('reportPreview').innerText);
+      localStorage.removeItem('draft_report');
       alert("作業報告の文章をコピーしました！");
 
       if (currentUnusedData && currentUnusedData.items && currentUnusedData.items.length > 0) {
@@ -1402,35 +1414,29 @@
       currentUnusedData = null;
     }
 
-    function submitUnusedItemsAllocation() {
+    async function submitUnusedItemsAllocation() {
       if (!currentUnusedData) return;
 
       const qtyInputs = document.querySelectorAll('.unused-qty');
       const userSelects = document.querySelectorAll('.unused-user');
 
-      qtyInputs.forEach((inp, idx) => {
-        const unusedQty = Number(inp.value);
-        const targetUser = userSelects[idx].value;
-        const partName = currentUnusedData.items[idx].part;
+      for (let i = 0; i < qtyInputs.length; i++) {
+        const unusedQty = Number(qtyInputs[i].value);
+        const targetUser = userSelects[i].value;
+        const partName = currentUnusedData.items[i].part;
 
         if (unusedQty > 0) {
           let partId = partName.split(' ')[0];
           const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === partName);
           if (found) {
-            addStockAdjustment(found.id, targetUser, unusedQty);
-            if (targetUser === '平田') found.stock_hirata += unusedQty;
-            else if (targetUser === '山本') found.stock_yamamoto += unusedQty;
-            else if (targetUser === '向井') found.stock_mukai += unusedQty;
-            else if (targetUser === '井阪') found.stock_isaka += unusedQty;
-            else if (targetUser === '河原') found.stock_kawahara += unusedQty;
-            else if (targetUser === '松井色素' || targetUser === '松井') found.stock_matsui += unusedQty;
+            await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(targetUser)}&qtyDelta=${unusedQty}`);
           }
         }
-      });
+      }
 
-      renderStockTable();
       alert("✅ 未使用部品を指定されたメンバーの個人在庫に移動しました！");
       closeUnusedModal();
+      await fetchAllDataFromGAS();
     }
 
     // ================= 個人在庫・棚卸・差異修正 =================
@@ -1488,7 +1494,7 @@
       document.getElementById('diffModal').style.display = 'none';
     }
 
-    function submitDiffCorrection() {
+    async function submitDiffCorrection() {
       const editor = document.getElementById('diffEditor').value;
       const targetUser = document.getElementById('diffTargetUser').value;
       const part = document.getElementById('diffPartSelect').value;
@@ -1503,39 +1509,26 @@
       const now = new Date();
       const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
-      const logEntry = {
+      // 1. 在庫数更新
+      let partId = part.split(' ')[0];
+      const qtyNum = Number(qtyChange.replace('+', ''));
+      if (!isNaN(qtyNum)) {
+        await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(partId)}&user=${encodeURIComponent(targetUser)}&qtyDelta=${qtyNum}`);
+      }
+
+      // 2. ログ保存
+      const logParams = new URLSearchParams({
+        action: 'saveLog',
         time: timeStr,
         editor: editor,
         targetUser: targetUser,
         part: part,
         qtyChange: qtyChange,
         reason: reason
-      };
+      });
+      await fetch(GAS_API_URL + "?" + logParams.toString());
 
-      diffLogs.unshift(logEntry);
-      localStorage.setItem('diff_logs', JSON.stringify(diffLogs));
-
-      // 在庫の直接反映処理
-      let partId = part.split(' ')[0];
-      const qtyNum = Number(qtyChange.replace('+', ''));
-      if (!isNaN(qtyNum)) {
-        addStockAdjustment(partId, targetUser, qtyNum);
-        const found = globalPartsData.find(p => p.id === partId);
-        if (found) {
-          if (targetUser === '大阪事務所') found.stock_osaka += qtyNum;
-          else if (targetUser === '平田') found.stock_hirata += qtyNum;
-          else if (targetUser === '山本') found.stock_yamamoto += qtyNum;
-          else if (targetUser === '向井') found.stock_mukai += qtyNum;
-          else if (targetUser === '井阪') found.stock_isaka += qtyNum;
-          else if (targetUser === '河原') found.stock_kawahara += qtyNum;
-          else if (targetUser === '松井色素' || targetUser === '松井') found.stock_matsui += qtyNum;
-        }
-      }
-
-      renderDiffLogs();
-      renderStockTable();
-
-      alert("✅ 差異修正ログが記録され、在庫数が更新されました。");
+      alert("✅ 差異修正ログが記録され、全員の端末の在庫数が更新されました。");
       closeDiffModal();
 
       document.getElementById('diffEditor').value = '';
@@ -1543,6 +1536,8 @@
       document.getElementById('diffPartSelect').value = '';
       document.getElementById('diffQtyChange').value = '';
       document.getElementById('diffReason').value = '';
+
+      await fetchAllDataFromGAS();
     }
 
     function renderDiffLogs() {
@@ -1552,10 +1547,11 @@
         return;
       }
       container.innerHTML = '';
-      diffLogs.forEach(log => {
+      // 新しい順に表示
+      [...diffLogs].reverse().forEach(log => {
         const div = document.createElement('div');
         div.style.cssText = "padding:6px; border-bottom:1px solid #eee; margin-bottom:4px;";
-        div.innerHTML = `<b>[${log.time}] 編集者: ${log.editor}</b><br>対象: ${log.targetUser} | 部品: ${log.part} | 数量増減: ${log.qtyChange}<br>理由: ${log.reason}`;
+        div.innerHTML = `<b>[${log.time || log.日時}] 編集者: ${log.editor || log.編集者}</b><br>対象: ${log.targetUser || log.対象} | 部品: ${log.part || log.部品} | 数量増減: ${log.qtyChange || log.数量増減}<br>理由: ${log.reason || log.理由}`;
         container.appendChild(div);
       });
     }
