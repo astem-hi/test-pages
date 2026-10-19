@@ -244,7 +244,7 @@
       <div id="moveItemsContainer"></div>
       <button class="btn btn-secondary btn-sm" id="addItemBtn" onclick="addMoveItemRow(); saveDraft('move');" style="margin-bottom:10px;">＋ 商品行を追加</button>
 
-      <div id="receiverSection" style="display:none;">
+      <div id="receiverSection">
         <label>受取責任者 <span style="color:red;">*必須</span></label>
         <select id="moveReceiver" onchange="generateMoveText(); saveDraft('move');">
           <option value="" disabled selected>選択してください</option>
@@ -315,7 +315,6 @@
         <button class="btn btn-secondary btn-sm" onclick="resetForm('report')">🔄 入力リセット</button>
       </div>
 
-      <!-- 🚚部品移動🚨 ボタン -->
       <button class="btn btn-warning" style="margin-bottom:12px; font-weight:bold;" onclick="openMoveModalForReport()">🚚 部品移動🚨 (移動済み部品を作業報告に取り込む)</button>
 
       <div id="reportUnprocessedContainer" style="margin-bottom: 12px; display:none;">
@@ -333,7 +332,7 @@
         <div>
           <label>報告者</label>
           <select id="repReporter" onchange="onReporterChange(); saveDraft('report');">
-            <option value="平田">平田</option>
+            <option value="平田" selected>平田</option>
             <option value="山本">山本</option>
             <option value="向井">向井</option>
             <option value="河原">河原</option>
@@ -364,7 +363,7 @@
 
       <label>LINE報告プレビュー</label>
       <div class="preview-box" id="reportPreview"></div>
-      <button class="btn btn-success" style="margin-top:8px;" onclick="copyReportText()">📋 文章を作成してコピペ (個人在庫から自動減算)</button>
+      <button class="btn btn-success" style="margin-top:8px;" onclick="copyReportText()">📋 文章を作成してコピペ & ログ保存</button>
     </div>
   </div>
 
@@ -416,7 +415,6 @@
   </div>
 
   <!-- モーダル各種 -->
-  <!-- 作業報告用：🚚部品移動🚨 モーダル -->
   <div id="moveSelectModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1100; align-items:center; justify-content:center;">
     <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:450px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
       <div class="section-title"><span>🚚 移動手配済みリストから選択</span></div>
@@ -425,7 +423,6 @@
     </div>
   </div>
 
-  <!-- 個人在庫用：入荷部品の複数人分配モーダル -->
   <div id="stockDistributeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1100; align-items:center; justify-content:center;">
     <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:500px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
       <div class="section-title"><span>📦 入荷部品の分配加算設定</span></div>
@@ -437,7 +434,6 @@
     </div>
   </div>
 
-  <!-- 未使用部品割り当てモーダル -->
   <div id="unusedModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1100; align-items:center; justify-content:center;">
     <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:450px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
       <div class="section-title"><span>📦 未使用部品の個人在庫への割り当て</span></div>
@@ -450,7 +446,6 @@
     </div>
   </div>
 
-  <!-- 差異修正モーダル -->
   <div id="diffModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:400px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
       <div class="section-title"><span>⚠️ 在庫差異 修正入力</span></div>
@@ -478,14 +473,12 @@
         <option value="松井色素">松井色素</option>
       </select>
 
-      <!-- 部品選択：曖昧検索付き -->
       <label>部品 (品番 品名) <span style="color:red;">*必須</span></label>
       <div class="part-search-container">
         <input type="text" id="diffPartSearch" placeholder="🔍 品番・品名で検索..." oninput="filterDiffPartDropdown(this)" onfocus="showDiffPartDropdown(this)">
         <div class="part-dropdown-list" id="diffPartDropdownList"></div>
       </div>
 
-      <!-- 数量増減：選択ボックス ＋ 自由入力 -->
       <label>数量増減 <span style="color:red;">*必須</span></label>
       <select id="diffQtySelect" onchange="checkDiffQtyCustom(this)">
         <option value="" disabled selected>増減量を選択</option>
@@ -542,6 +535,9 @@
       initMapGrid();
       document.getElementById('repDate').valueAsDate = new Date();
       
+      onMoveTypeChange(); // 初期状態での受取責任者表示制御
+      onReporterChange(); // 初期状態での同行チェック制御
+
       const savedTab = localStorage.getItem('active_tab') || 'map';
       switchTab(savedTab);
 
@@ -585,7 +581,6 @@
       }));
     }
 
-    // 下書き保存・復元・リセット
     function saveDraft(formName) {
       if (formName === 'move') {
         const data = {
@@ -637,6 +632,18 @@
           if (d.remarks) document.getElementById('moveRemarks').value = d.remarks;
           generateMoveText();
         } catch(e) {}
+      } else if (formName === 'report') {
+        const json = localStorage.getItem('draft_report');
+        if (!json) return;
+        try {
+          const d = JSON.parse(json);
+          if (d.reporter) document.getElementById('repReporter').value = d.reporter;
+          onReporterChange();
+          if (d.date) document.getElementById('repDate').value = d.date;
+          if (d.customer) document.getElementById('repCustomer').value = d.customer;
+          if (d.overallRemarks) document.getElementById('repOverallRemarks').value = d.overallRemarks;
+          generateReportText();
+        } catch(e) {}
       }
     }
 
@@ -654,6 +661,8 @@
           generateMoveText();
         } else if (formName === 'report') {
           document.getElementById('repDate').valueAsDate = new Date();
+          document.getElementById('repReporter').value = '平田';
+          onReporterChange();
           document.getElementById('repCustomer').value = '';
           document.getElementById('repOverallRemarks').value = '';
           document.getElementById('machineSectionsContainer').innerHTML = '';
@@ -1150,7 +1159,6 @@
       renderUnprocessedLists();
     }
 
-    // 作業報告用：🚚部品移動🚨 モーダル機能
     function openMoveModalForReport() {
       const todayStr = new Date().toISOString().slice(0, 10);
       const availableMoves = pendingMoves.filter(m => m.status === 'pending' && m.arrivalDate <= todayStr && m.destination !== '大阪事務所' && m.destination !== '松井色素');
@@ -1207,6 +1215,12 @@
               ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}">${n}</option>`).join('')}
               <option value="custom">自由入力...</option>
             </select>
+            <select style="flex:1;" class="rep-part-source">
+              <option value="大阪事務所">大阪事務所</option>
+              <optgroup label="個人在庫">
+                ${ALL_MEMBERS.map(m => `<option value="${m}" ${m===move.receiver?'selected':''}>${m}</option>`).join('')}
+              </optgroup>
+            </select>
             <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
           `;
           partsContainer.appendChild(row);
@@ -1219,7 +1233,7 @@
       alert(`✅ 顧客「${move.customer}」の移動部品を作業報告に反映しました！`);
     }
 
-    // 個人在庫用：入荷・分配モーダル機能
+    // 個人在庫用：入荷・分配モーダル機能 (数量一致チェック強化)
     function openStockDistributeModal(moveId) {
       const move = pendingMoves.find(m => m.id === moveId);
       if (!move) return;
@@ -1235,13 +1249,12 @@
         const itemBox = document.createElement('div');
         itemBox.style.cssText = "margin-bottom:12px; border:1px solid #ddd; padding:8px; border-radius:6px; background:#fafafa;";
         itemBox.innerHTML = `
-          <div style="font-weight:bold; font-size:0.9rem; margin-bottom:6px; color:#007bff;">${item.part} (入荷総量: ${item.qty})</div>
+          <div style="font-weight:bold; font-size:0.9rem; margin-bottom:6px; color:#007bff;">${item.part} (移動指示量: ${item.qty})</div>
           <div id="distRowsContainer-${itemIdx}"></div>
           <button class="btn btn-secondary btn-sm" style="margin-top:4px;" onclick="addDistRow(${itemIdx}, '${item.part}')">＋ 分配先を追加</button>
         `;
         container.appendChild(itemBox);
 
-        // 初期で責任者分の1行を追加
         addDistRow(itemIdx, item.part, move.receiver, item.qty);
       });
 
@@ -1277,6 +1290,22 @@
       let itemsParsed = [];
       try { itemsParsed = JSON.parse(currentDistributeMove.itemsJson); } catch(e){}
 
+      // 1. 移動数量 = 分配数量 の厳密チェック
+      for (let itemIdx = 0; itemIdx < itemsParsed.length; itemIdx++) {
+        const item = itemsParsed[itemIdx];
+        const rows = document.querySelectorAll(`#distRowsContainer-${itemIdx} .dynamic-row`);
+        let sumQty = 0;
+        rows.forEach(r => {
+          sumQty += Number(r.querySelector('.dist-qty').value || 0);
+        });
+
+        if (sumQty !== Number(item.qty)) {
+          alert(`⚠️ 【${item.part}】の分配合計数量(${sumQty})が、元の移動指示数量(${item.qty})と一致していません。ぴったり一致するように調整してください。`);
+          return;
+        }
+      }
+
+      // 2. チェック通過後に在庫更新処理
       for (let itemIdx = 0; itemIdx < itemsParsed.length; itemIdx++) {
         const item = itemsParsed[itemIdx];
         const rows = document.querySelectorAll(`#distRowsContainer-${itemIdx} .dynamic-row`);
@@ -1317,7 +1346,15 @@
           label.style.textDecoration = 'none';
         }
       });
+      refreshReportSourceSelects();
       generateReportText();
+    }
+
+    function refreshReportSourceSelects() {
+      const reporter = document.getElementById('repReporter').value;
+      document.querySelectorAll('.rep-part-source').forEach(sel => {
+        if (!sel.value) sel.value = reporter;
+      });
     }
 
     function addMachineSection() {
@@ -1348,7 +1385,7 @@
         <input type="text" class="rep-m-content" placeholder="作業内容" oninput="generateReportText(); saveDraft('report');">
         <label>対応</label>
         <input type="text" class="rep-m-action" placeholder="対応内容" oninput="generateReportText(); saveDraft('report');">
-        <label>使用部品（検索・自由記入対応）</label>
+        <label>使用部品（持出元の個人選択対応）</label>
         <div class="rep-parts-container"></div>
         <button class="btn btn-secondary btn-sm" onclick="addReportPartRow(this); saveDraft('report');">＋ 部品を追加</button>
         <label style="margin-top:6px;">機器別備考</label>
@@ -1360,6 +1397,7 @@
 
     function addReportPartRow(btn) {
       const container = btn.previousElementSibling;
+      const reporter = document.getElementById('repReporter').value;
       const row = document.createElement('div');
       row.className = 'dynamic-row';
       row.innerHTML = `
@@ -1371,6 +1409,12 @@
           <option value="" disabled selected>数量</option>
           ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}">${n}</option>`).join('')}
           <option value="custom">自由入力...</option>
+        </select>
+        <select style="flex:1;" class="rep-part-source" title="持出元">
+          <option value="大阪事務所">大阪事務所</option>
+          <optgroup label="個人在庫">
+            ${ALL_MEMBERS.map(m => `<option value="${m}" ${m===reporter?'selected':''}>${m}</option>`).join('')}
+          </optgroup>
         </select>
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
       `;
@@ -1479,36 +1523,79 @@
     }
 
     async function copyReportText() {
+      const date = document.getElementById('repDate').value;
       const reporter = document.getElementById('repReporter').value;
+      let companions = [];
+      document.querySelectorAll('#repCompanions input:checked').forEach(el => companions.push(el.value));
+      const customer = document.getElementById('repCustomer').value.trim();
+      const overallRemarks = document.getElementById('repOverallRemarks').value.trim();
 
-      // 使用部品の個人在庫からの自動減算処理
+      // 1. 使用部品の選択された持出元からの減算処理
       let usedPartsList = [];
+      let reportDetailsObj = [];
+
       document.querySelectorAll('.machine-section').forEach(sec => {
+        const type = sec.querySelector('.rep-m-type').value;
+        const mName = sec.querySelector('.rep-m-name').value.trim();
+        const content = sec.querySelector('.rep-m-content').value.trim();
+        const action = sec.querySelector('.rep-m-action').value.trim();
+        const remarks = sec.querySelector('.rep-m-remarks').value.trim();
+
+        let secParts = [];
         sec.querySelectorAll('.rep-parts-container .dynamic-row').forEach(row => {
           const pInput = row.querySelector('.rep-part-search');
           const pQtyInput = row.querySelector('.rep-part-qty') || row.querySelector('.rep-part-qty-input');
+          const pSourceSel = row.querySelector('.rep-part-source');
+
           let pName = pInput ? pInput.value.trim() : '';
           const pQty = pQtyInput ? Number(pQtyInput.value) : 0;
+          const pSource = pSourceSel ? pSourceSel.value : reporter;
+
           if (pName && pQty > 0) {
-            usedPartsList.push({ name: pName, qty: pQty });
+            usedPartsList.push({ name: pName, qty: pQty, source: pSource });
+            secParts.push({ part: pName, qty: pQty, source: pSource });
           }
+        });
+
+        reportDetailsObj.push({
+          type: type,
+          name: mName,
+          content: content,
+          action: action,
+          remarks: remarks,
+          parts: secParts
         });
       });
 
+      // 在庫減算を実行
       if (usedPartsList.length > 0) {
         for (let item of usedPartsList) {
           let partId = item.name.split(' ')[0];
           const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.name);
           if (found) {
-            // 報告者の個人在庫から減算 (Delta: -qty)
-            await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(reporter)}&qtyDelta=-${item.qty}`);
+            await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(item.source)}&qtyDelta=-${item.qty}`);
           }
         }
       }
 
+      // 2. 作業報告ログをスプレッドシート（report_logs）へ保存
+      const now = new Date();
+      const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      
+      const reportLogParams = new URLSearchParams({
+        action: 'saveLog', // GASのsaveLogを流用、または専用処理
+        time: timeStr,
+        editor: reporter,
+        targetUser: companions.join(', '),
+        part: customer,
+        qtyChange: JSON.stringify(reportDetailsObj),
+        reason: overallRemarks
+      });
+      await fetch(GAS_API_URL + "?" + reportLogParams.toString());
+
       navigator.clipboard.writeText(document.getElementById('reportPreview').innerText);
       localStorage.removeItem('draft_report');
-      alert(`📋 作業報告の文章をコピーしました！使用部品分、${reporter} の個人在庫から減算されました。`);
+      alert(`📋 作業報告の文章をコピーし、ログを記録しました！指定された持出元から部品数が減算されました。`);
 
       if (currentUnusedData && currentUnusedData.items && currentUnusedData.items.length > 0) {
         openUnusedModal(currentUnusedData);
@@ -1618,7 +1705,6 @@
       });
     }
 
-    // 差異修正の部品曖昧検索用ドロップダウン
     function showDiffPartDropdown(input) {
       input.nextElementSibling.style.display = 'block';
       filterDiffPartDropdown(input);
@@ -1692,10 +1778,8 @@
       const now = new Date();
       const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
-      // 1. 在庫数更新
       await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(partId)}&user=${encodeURIComponent(targetUser)}&qtyDelta=${qtyNum}`);
 
-      // 2. ログ保存
       const logParams = new URLSearchParams({
         action: 'saveLog',
         time: timeStr,
