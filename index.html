@@ -1113,7 +1113,7 @@
           div.className = 'unproc-card';
           div.innerHTML = `
             <div><b>顧客: ${m.customer}</b> (指示日: ${m.instructionDate} / 到着日: ${m.arrivalDate} / 責任者: ${m.receiver})</div>
-            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} ×${i.qty}`).join('<br>')}</div>
+            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} × ${i.qty}`).join('<br>')}</div>
             <div style="display:flex; gap:6px; margin-top:6px;">
               <button class="btn btn-success btn-sm" onclick="processReportIntegration('${m.id}')">この内容で作業報告と紐付け</button>
               <button class="btn btn-secondary btn-sm" onclick="updatePendingStatus('${m.id}', 'skipped')">スルーする</button>
@@ -1138,7 +1138,7 @@
           div.className = 'unproc-card';
           div.innerHTML = `
             <div><b>[${m.destination}] ${m.customer}</b> (指示日: ${m.instructionDate} / 責任者: ${m.receiver})</div>
-            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} ×${i.qty}`).join('<br>')}</div>
+            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} × ${i.qty}`).join('<br>')}</div>
             <div style="display:flex; gap:6px; margin-top:6px; align-items:center;">
               <button class="btn btn-success btn-sm" onclick="openStockDistributeModal('${m.id}')">入荷・分配加算処理を開く</button>
               <button class="btn btn-secondary btn-sm" onclick="updatePendingStatus('${m.id}', 'skipped')">スルーする</button>
@@ -1176,7 +1176,7 @@
           div.className = 'unproc-card';
           div.innerHTML = `
             <div><b>顧客: ${m.customer}</b> (指示日: ${m.instructionDate} / 責任者: ${m.receiver})</div>
-            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} ×${i.qty}`).join('<br>')}</div>
+            <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} × ${i.qty}`).join('<br>')}</div>
             <button class="btn btn-success btn-sm" onclick="processReportIntegration('${m.id}'); closeMoveSelectModal();">この内容で作業報告に反映</button>
           `;
           listContainer.appendChild(div);
