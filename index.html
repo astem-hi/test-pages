@@ -78,7 +78,6 @@
       align-items: center;
     }
 
-    /* iOS・iPhoneでの日付インプット等のはみ出し防止調整 */
     input, select, textarea {
       width: 100%;
       max-width: 100%;
@@ -108,6 +107,35 @@
       display: block;
       margin-bottom: 3px;
     }
+    
+    /* 3. 同行メンバーチェックボックス用復元デザイン */
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .checkbox-label {
+      display: inline-flex !important;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+      font-weight: normal !important;
+      color: #333;
+      cursor: pointer;
+      background: #f8f9fa;
+      padding: 6px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      user-select: none;
+    }
+    .checkbox-label input[type="checkbox"] {
+      width: 18px !important;
+      height: 18px !important;
+      margin: 0 !important;
+      cursor: pointer;
+    }
+
     .btn {
       background: var(--accent-color);
       color: #fff;
@@ -282,6 +310,22 @@
         <option value="ヘッドクリーナー在庫落とし">ヘッドクリーナー在庫落とし</option>
       </select>
 
+      <!-- 1 & 2. 減算元・発送元の選択セクション -->
+      <div id="moveSourceSection" style="display:none;">
+        <label>減算元・持出元 <span style="color:red;">*必須</span></label>
+        <select id="moveSourceUser" onchange="generateMoveText(); saveDraft('move');">
+          <option value="大阪事務所" selected>大阪事務所</option>
+          <optgroup label="個人在庫">
+            <option value="平田">平田</option>
+            <option value="山本">山本</option>
+            <option value="向井">向井</option>
+            <option value="井阪">井阪</option>
+            <option value="河原">河原</option>
+            <option value="松井色素">松井色素</option>
+          </optgroup>
+        </select>
+      </div>
+
       <label>商品・数量（検索対応）</label>
       <div id="moveItemsContainer"></div>
       <button class="btn btn-secondary btn-sm" id="addItemBtn" onclick="addMoveItemRow(); saveDraft('move');" style="margin-bottom:10px;">＋ 商品行を追加</button>
@@ -384,14 +428,15 @@
         </div>
       </div>
 
+      <!-- 3. 同行メンバーデザインの復元 -->
       <label>同行メンバー (複数選択可)</label>
-      <div id="repCompanions" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; font-size:0.85rem;">
-        <label><input type="checkbox" value="平田" onchange="generateReportText(); saveDraft('report');"> 平田</label>
-        <label><input type="checkbox" value="山本" onchange="generateReportText(); saveDraft('report');"> 山本</label>
-        <label><input type="checkbox" value="向井" onchange="generateReportText(); saveDraft('report');"> 向井</label>
-        <label><input type="checkbox" value="河原" onchange="generateReportText(); saveDraft('report');"> 河原</label>
-        <label><input type="checkbox" value="井阪" onchange="generateReportText(); saveDraft('report');"> 井阪</label>
-        <label><input type="checkbox" value="松井色素" onchange="generateReportText(); saveDraft('report');"> 松井色素</label>
+      <div id="repCompanions" class="checkbox-group">
+        <label class="checkbox-label"><input type="checkbox" value="平田" onchange="generateReportText(); saveDraft('report');"> 平田</label>
+        <label class="checkbox-label"><input type="checkbox" value="山本" onchange="generateReportText(); saveDraft('report');"> 山本</label>
+        <label class="checkbox-label"><input type="checkbox" value="向井" onchange="generateReportText(); saveDraft('report');"> 向井</label>
+        <label class="checkbox-label"><input type="checkbox" value="河原" onchange="generateReportText(); saveDraft('report');"> 河原</label>
+        <label class="checkbox-label"><input type="checkbox" value="井阪" onchange="generateReportText(); saveDraft('report');"> 井阪</label>
+        <label class="checkbox-label"><input type="checkbox" value="松井色素" onchange="generateReportText(); saveDraft('report');"> 松井色素</label>
       </div>
 
       <label>顧客名</label>
@@ -413,6 +458,12 @@
   <div id="tab-stock" class="tab-content">
     <div id="minusStockAlertPanel" style="display:none; background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; padding:10px; border-radius:8px; margin-bottom:12px; font-weight:bold;">
       ⚠️ マイナス在庫が発生している部品があります。在庫数を確認の上、必要に応じて差異修正を行ってください。
+    </div>
+
+    <!-- 2. お客様仮在庫の個人倉庫戻し管理パネル -->
+    <div class="panel" id="tempCustomerStockPanel" style="display:none; background:#e8f4f8; border:1px solid #b8daff;">
+      <div class="section-title" style="color:#004085;"><span>📦 お客様仮在庫 (個人返却・戻し処理)</span></div>
+      <div id="tempCustomerStockList" style="max-height: 200px; overflow-y: auto;"></div>
     </div>
 
     <div class="panel">
@@ -460,7 +511,7 @@
     </div>
   </div>
 
-  <!-- 5. マイナス在庫強行確認モーダル -->
+  <!-- マイナス在庫強行確認モーダル -->
   <div id="minusConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1200; align-items:center; justify-content:center;">
     <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:420px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
       <div class="section-title" style="color:#d9534f;"><span>⚠️ 在庫不足（マイナス発生）の警告</span></div>
@@ -538,12 +589,13 @@
         <div class="part-dropdown-list" id="diffPartDropdownList"></div>
       </div>
 
+      <!-- 4. 差異修正数量の並び順とデフォルト0設定 -->
       <label>数量増減 <span style="color:red;">*必須</span></label>
       <select id="diffQtySelect" onchange="checkDiffQtyCustom(this)">
-        <option value="" disabled selected>増減量を選択</option>
         <option value="custom_top">自由入力（数値指定）...</option>
-        <option value="+1">+1</option><option value="+2">+2</option><option value="+3">+3</option><option value="+4">+4</option><option value="+5">+5</option>
-        <option value="+6">+6</option><option value="+7">+7</option><option value="+8">+8</option><option value="+9">+9</option><option value="+10">+10</option>
+        <option value="+10">+10</option><option value="+9">+9</option><option value="+8">+8</option><option value="+7">+7</option><option value="+6">+6</option>
+        <option value="+5">+5</option><option value="+4">+4</option><option value="+3">+3</option><option value="+2">+2</option><option value="+1">+1</option>
+        <option value="0" selected>0</option>
         <option value="-1">-1</option><option value="-2">-2</option><option value="-3">-3</option><option value="-4">-4</option><option value="-5">-5</option>
         <option value="-6">-6</option><option value="-7">-7</option><option value="-8">-8</option><option value="-9">-9</option><option value="-10">-10</option>
         <option value="custom_bottom">自由入力（数値指定）...</option>
@@ -568,7 +620,7 @@
     let pendingMoves = [];
     let currentUnusedData = null;
     let currentDistributeMove = null;
-    let pendingReportSaveData = null; // マイナス確認時一時保持用
+    let pendingReportSaveData = null;
 
     const ALL_MEMBERS = ['平田', '山本', '向井', '井阪', '河原', '松井色素'];
 
@@ -593,10 +645,12 @@
       if (tabId === 'stock') {
         renderStockTable();
         renderUnprocessedLists();
+        renderTempCustomerStock();
         renderDiffLogs();
       }
       if (tabId === 'report') {
         renderUnprocessedLists();
+        refreshReportSourceSelects();
       }
     }
 
@@ -647,6 +701,7 @@
           renderMapList(globalPartsData);
           renderStockTable();
           renderUnprocessedLists();
+          renderTempCustomerStock();
           renderDiffLogs();
         }
       } catch (err) {
@@ -675,6 +730,7 @@
       if (formName === 'move') {
         const data = {
           type: document.getElementById('moveType').value,
+          sourceUser: document.getElementById('moveSourceUser').value,
           receiver: document.getElementById('moveReceiver').value,
           shippingDate: document.getElementById('moveShippingDate').value,
           shippingCustom: document.getElementById('moveShippingCustom').value,
@@ -706,6 +762,7 @@
           const d = JSON.parse(json);
           if (d.type) document.getElementById('moveType').value = d.type;
           onMoveTypeChange();
+          if (d.sourceUser) document.getElementById('moveSourceUser').value = d.sourceUser;
           if (d.receiver) document.getElementById('moveReceiver').value = d.receiver;
           if (d.shippingDate) document.getElementById('moveShippingDate').value = d.shippingDate;
           toggleCustomDate('moveShippingDate', 'moveShippingCustom');
@@ -939,10 +996,12 @@
       generateMoveText();
     }
 
+    // 1 & 2. 種別変更時に「持出元・減算元」の選択セクションを表示制御
     function onMoveTypeChange() {
       const type = document.getElementById('moveType').value;
       const destSelect = document.getElementById('moveDestType');
       const receiverSection = document.getElementById('receiverSection');
+      const sourceSection = document.getElementById('moveSourceSection');
       const addItemBtn = document.getElementById('addItemBtn');
       const moveContainer = document.getElementById('moveItemsContainer');
       const submitBtn = document.getElementById('moveSubmitBtn');
@@ -951,6 +1010,13 @@
         receiverSection.style.display = 'block';
       } else {
         receiverSection.style.display = 'none';
+      }
+
+      // 1 & 2. 発送元・減算元の選択セクション表示制御
+      if (type === '大阪事務所在庫から出荷（売り立て処理のみ）' || type === '大阪事務所在庫から発送（部品移動のみ）') {
+        sourceSection.style.display = 'block';
+      } else {
+        sourceSection.style.display = 'none';
       }
 
       if (type === 'ヘッドクリーナー在庫落とし') {
@@ -1113,10 +1179,12 @@
         if (destType === '自由記述') actionWord = "直送";
         middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n通常販売扱いでお願いいたします。`;
       } else if (type === '大阪事務所在庫から発送（部品移動のみ）') {
-        headerLine = "お疲れ様です。大阪事務所から部品発送をお願いいたします。";
+        const sourceUser = document.getElementById('moveSourceUser').value;
+        headerLine = `お疲れ様です。${sourceUser}所有の在庫から部品発送をお願いいたします。`;
         middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n部品移動扱いでお願いいたします。`;
       } else if (type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
-        headerLine = "お疲れ様です。大阪事務所から売り立てで出荷をお願いいたします。";
+        const sourceUser = document.getElementById('moveSourceUser').value;
+        headerLine = `お疲れ様です。${sourceUser}所有の在庫から売り立てで出荷をお願いいたします。`;
         middleLine = `${sDate}出荷、${aDate}着にて${destName}へ${actionWord}お願いいたします。\n売り立て処理扱いでお願いいたします。`;
       }
 
@@ -1165,6 +1233,70 @@
         return;
       }
 
+      const sourceUser = document.getElementById('moveSourceUser').value || '大阪事務所';
+
+      // 1. 売り立て処理の場合、指定持出元からの減算を実行
+      if (type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
+        showLoading("在庫減算処理を実行中...");
+        try {
+          for (let item of items) {
+            let partId = item.part.split(' ')[0];
+            const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.part);
+            if (found) {
+              await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(sourceUser)}&qtyDelta=-${item.qty}`);
+            }
+          }
+          navigator.clipboard.writeText(document.getElementById('movePreview').innerText);
+          localStorage.removeItem('draft_move');
+          alert(`📋 文章をコピーし、${sourceUser}の在庫から減算処理を行いました！`);
+          await fetchAllDataFromGAS();
+        } finally {
+          hideLoading();
+        }
+        return;
+      }
+
+      // 2. 部品移動のみの場合、持出元から減算＆お客様仮在庫（pending_moves）に登録
+      if (type === '大阪事務所在庫から発送（部品移動のみ）') {
+        showLoading("持出元減算・仮在庫登録中...");
+        try {
+          for (let item of items) {
+            let partId = item.part.split(' ')[0];
+            const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.part);
+            if (found) {
+              await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(sourceUser)}&qtyDelta=-${item.qty}`);
+            }
+          }
+
+          const aDateMode = document.getElementById('moveArrivalDate').value;
+          const aDateVal = document.getElementById('moveArrivalCustom').value;
+          let arrivalDateStr = (aDateMode === '日付指定' && aDateVal) ? aDateVal : new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+          const now = new Date();
+          const instructionDateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
+
+          const moveRecord = {
+            id: 'MOVE-' + Date.now(),
+            type: type,
+            customer: customerName,
+            destination: customerName,
+            receiver: receiverSelect ? receiverSelect.value : sourceUser,
+            instructionDate: instructionDateStr,
+            arrivalDate: arrivalDateStr,
+            itemsJson: JSON.stringify(items),
+            status: 'pending'
+          };
+
+          await fetch(GAS_API_URL + "?action=savePending&" + new URLSearchParams(moveRecord));
+          navigator.clipboard.writeText(document.getElementById('movePreview').innerText);
+          localStorage.removeItem('draft_move');
+          alert(`📋 文章をコピーし、${sourceUser}から減算のうえ顧客「${customerName}」の仮在庫にセットしました！`);
+          await fetchAllDataFromGAS();
+        } finally {
+          hideLoading();
+        }
+        return;
+      }
+
       if (type === '通常販売で出荷') {
         navigator.clipboard.writeText(document.getElementById('movePreview').innerText);
         localStorage.removeItem('draft_move');
@@ -1197,6 +1329,67 @@
         navigator.clipboard.writeText(document.getElementById('movePreview').innerText);
         localStorage.removeItem('draft_move');
         alert("📋 文章をコピーし、全員の端末の未処理リストにセットしました！");
+        await fetchAllDataFromGAS();
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // 2. お客様仮在庫の個人倉庫戻し処理UIの描画
+    function renderTempCustomerStock() {
+      const panel = document.getElementById('tempCustomerStockPanel');
+      const list = document.getElementById('tempCustomerStockList');
+      const activePending = pendingMoves.filter(m => m.status === 'pending');
+
+      if (activePending.length === 0) {
+        panel.style.display = 'none';
+        return;
+      }
+
+      panel.style.display = 'block';
+      list.innerHTML = '';
+
+      activePending.forEach(m => {
+        let itemsParsed = [];
+        try { itemsParsed = JSON.parse(m.itemsJson); } catch(e){}
+        const div = document.createElement('div');
+        div.className = 'unproc-card';
+        div.style.background = '#fff';
+        div.innerHTML = `
+          <div><b>[仮在庫] 顧客: ${m.customer}</b> (発送元/責任者: ${m.receiver})</div>
+          <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} × ${i.qty}`).join('<br>')}</div>
+          <div style="display:flex; gap:6px; margin-top:6px; align-items:center;">
+            <span style="font-size:0.75rem;">戻し先:</span>
+            <select class="return-target-user" style="padding:2px 4px; font-size:0.8rem; margin:0; flex:1;">
+              <option value="大阪事務所">大阪事務所</option>
+              ${ALL_MEMBERS.map(mem => `<option value="${mem}">${mem}</option>`).join('')}
+            </select>
+            <button class="btn btn-warning btn-sm" onclick="returnTempStockToUser('${m.id}', this)">個人在庫へ戻す</button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    async function returnTempStockToUser(moveId, btn) {
+      const move = pendingMoves.find(m => m.id === moveId);
+      if (!move) return;
+
+      const targetUser = btn.previousElementSibling.value;
+      let itemsParsed = [];
+      try { itemsParsed = JSON.parse(move.itemsJson); } catch(e){}
+
+      showLoading("個人在庫へ戻し処理中...");
+      try {
+        for (let item of itemsParsed) {
+          let partId = item.part.split(' ')[0];
+          const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.part);
+          if (found) {
+            await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(targetUser)}&qtyDelta=${item.qty}`);
+          }
+        }
+        await updatePendingStatus(moveId, 'returned');
+        alert(`✅ 顧客「${move.customer}」の仮在庫を${targetUser}の個人在庫に戻しました！`);
         await fetchAllDataFromGAS();
       } finally {
         hideLoading();
@@ -1268,6 +1461,7 @@
       try {
         await fetch(GAS_API_URL + `?action=savePending&id=${m.id}&type=${encodeURIComponent(m.type)}&customer=${encodeURIComponent(m.customer)}&destination=${encodeURIComponent(m.destination)}&receiver=${encodeURIComponent(m.receiver)}&instructionDate=${encodeURIComponent(m.instructionDate)}&arrivalDate=${encodeURIComponent(m.arrivalDate)}&itemsJson=${encodeURIComponent(m.itemsJson)}&status=${newStatus}`);
         renderUnprocessedLists();
+        renderTempCustomerStock();
       } finally {
         hideLoading();
       }
@@ -1331,8 +1525,11 @@
             </select>
             <select style="flex:1;" class="rep-part-source">
               <option value="大阪事務所">大阪事務所</option>
+              <optgroup label="お客様仮在庫">
+                <option value="TEMP__${move.customer}" selected>仮在庫: ${move.customer}</option>
+              </optgroup>
               <optgroup label="個人在庫">
-                ${ALL_MEMBERS.map(m => `<option value="${m}" ${m===move.receiver?'selected':''}>${m}</option>`).join('')}
+                ${ALL_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('')}
               </optgroup>
             </select>
             <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
@@ -1466,10 +1663,25 @@
       generateReportText();
     }
 
+    // 2. 作業報告の持出元ドロップダウンにお客様仮在庫を追加
     function refreshReportSourceSelects() {
       const reporter = document.getElementById('repReporter').value;
+      const activePending = pendingMoves.filter(m => m.status === 'pending');
+
       document.querySelectorAll('.rep-part-source').forEach(sel => {
-        if (!sel.value) sel.value = reporter;
+        const currentVal = sel.value;
+        sel.innerHTML = `
+          <option value="大阪事務所">大阪事務所</option>
+          ${activePending.length > 0 ? `
+            <optgroup label="お客様仮在庫">
+              ${activePending.map(m => `<option value="TEMP__${m.customer}">仮在庫: ${m.customer}</option>`).join('')}
+            </optgroup>
+          ` : ''}
+          <optgroup label="個人在庫">
+            ${ALL_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('')}
+          </optgroup>
+        `;
+        sel.value = currentVal || reporter;
       });
     }
 
@@ -1511,10 +1723,11 @@
       generateReportText();
     }
 
-    // 4. 使用部品の数量デフォルトを 1 に設定
     function addReportPartRow(btn) {
       const container = btn.previousElementSibling;
       const reporter = document.getElementById('repReporter').value;
+      const activePending = pendingMoves.filter(m => m.status === 'pending');
+
       const row = document.createElement('div');
       row.className = 'dynamic-row';
       row.innerHTML = `
@@ -1528,6 +1741,11 @@
         </select>
         <select style="flex:1;" class="rep-part-source" title="持出元">
           <option value="大阪事務所">大阪事務所</option>
+          ${activePending.length > 0 ? `
+            <optgroup label="お客様仮在庫">
+              ${activePending.map(m => `<option value="TEMP__${m.customer}">仮在庫: ${m.customer}</option>`).join('')}
+            </optgroup>
+          ` : ''}
           <optgroup label="個人在庫">
             ${ALL_MEMBERS.map(m => `<option value="${m}" ${m===reporter?'selected':''}>${m}</option>`).join('')}
           </optgroup>
@@ -1586,7 +1804,6 @@
       });
     }
 
-    // 1. 同一部品の複数人所有からの持出を1行に合算 ＆ 3. LINEプレビューに同行者非表示
     function generateReportText() {
       const date = document.getElementById('repDate').value;
 
@@ -1605,7 +1822,6 @@
 
         text += `交換部品:\n`;
 
-        // 機械セクション内での同部品の合算処理
         let aggregatedPartsMap = {};
         sec.querySelectorAll('.rep-parts-container .dynamic-row').forEach(row => {
           const pInput = row.querySelector('.rep-part-search');
@@ -1643,13 +1859,13 @@
       document.getElementById('reportPreview').innerText = text;
     }
 
-    // 5. 在庫不足（マイナス）の判定ロジック
     function checkStockShortage(usedPartsList) {
       let shortageList = [];
-      
-      // 持出元ユーザー別に合計使用量を集計
       let usageByUserPart = {};
+
       usedPartsList.forEach(item => {
+        if (item.source.startsWith('TEMP__')) return; // お客様仮在庫はスキップ
+
         let partId = item.name.split(' ')[0];
         const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.name);
         const actualPartId = found ? found.id : partId;
@@ -1658,7 +1874,6 @@
         usageByUserPart[key] = (usageByUserPart[key] || 0) + item.qty;
       });
 
-      // 現状在庫との照合
       Object.keys(usageByUserPart).forEach(key => {
         const [sourceUser, partId] = key.split('____');
         const usedQty = usageByUserPart[key];
@@ -1733,7 +1948,6 @@
         });
       });
 
-      // 5. 在庫不足チェック
       const shortages = checkStockShortage(usedPartsList);
       if (shortages.length > 0) {
         pendingReportSaveData = {
@@ -1772,10 +1986,19 @@
       try {
         if (usedPartsList.length > 0) {
           for (let item of usedPartsList) {
-            let partId = item.name.split(' ')[0];
-            const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.name);
-            if (found) {
-              await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(item.source)}&qtyDelta=-${item.qty}`);
+            // 仮在庫からの消化の場合は、対応する pending_moves のステータスを更新
+            if (item.source.startsWith('TEMP__')) {
+              const customerName = item.source.replace('TEMP__', '');
+              const foundMove = pendingMoves.find(m => m.customer === customerName && m.status === 'pending');
+              if (foundMove) {
+                await updatePendingStatus(foundMove.id, 'processed');
+              }
+            } else {
+              let partId = item.name.split(' ')[0];
+              const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.name);
+              if (found) {
+                await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(item.source)}&qtyDelta=-${item.qty}`);
+              }
             }
           }
         }
@@ -1878,7 +2101,6 @@
     }
 
     // ================= 個人在庫・棚卸・差異修正 =================
-    // 5. マイナス在庫のアラート枠表示 ＆ テーブル上での赤字ハイライト
     function renderStockTable() {
       const kw = document.getElementById('stockSearchInput').value.trim();
       const tbody = document.getElementById('stockTableBody');
@@ -1926,7 +2148,6 @@
         });
       }
 
-      // マイナス在庫アラートの表示制御
       if (hasMinusStockGlobal) {
         alertPanel.style.display = 'block';
       } else {
@@ -1971,7 +2192,7 @@
     function openDiffModal() {
       document.getElementById('diffModal').style.display = 'flex';
       document.getElementById('diffPartSearch').value = '';
-      document.getElementById('diffQtySelect').value = '';
+      document.getElementById('diffQtySelect').value = '0';
       document.getElementById('diffQtyCustomInput').style.display = 'none';
     }
 
@@ -1992,7 +2213,7 @@
         qtyStr = customQty;
       }
 
-      if (!editor || !targetUser || !part || !qtyStr || !reason) {
+      if (!editor || !targetUser || !part || qtyStr === '' || !reason) {
         alert("⚠️ すべての必須項目を入力・選択してください。");
         return;
       }
