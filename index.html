@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <!-- iOSでの勝手なズーム拡大を防ぐviewport設定 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>メンテナンス統合管理システム</title>
   <style>
@@ -21,7 +20,7 @@
       background-color: var(--bg-color);
       margin: 0;
       padding: 8px;
-      padding-bottom: 250px; /* iPhoneキーボード被り対策の十分な下部余白 */
+      padding-bottom: 250px;
       color: #333;
       overflow-x: hidden;
     }
@@ -78,7 +77,8 @@
       justify-content: space-between;
       align-items: center;
     }
-    /* iOSの勝手な拡大（ズーム）を防ぐためfont-sizeを16px以上に統一 */
+
+    /* iOS・iPhoneでの日付インプット等のはみ出し防止調整 */
     input, select, textarea {
       width: 100%;
       max-width: 100%;
@@ -89,6 +89,14 @@
       outline: none;
       margin-bottom: 8px;
       background: #fff;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+    }
+    input[type="date"] {
+      display: block;
+      min-height: 42px;
+      line-height: 1.3;
     }
     input:focus, select:focus, textarea:focus {
       border-color: var(--accent-color);
@@ -154,11 +162,11 @@
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     th, td { border: 1px solid var(--border-color); padding: 6px; text-align: left; }
     th { background: #f1f3f5; }
+    .minus-stock { color: #ff3b30; font-weight: bold; background-color: #ffe6e6; }
     
     .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; width: 100%; min-width: 0; }
     .preview-box { background: #e9ecef; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; margin-top: 8px; word-break: break-all; }
 
-    /* モバイルでの被りを完全防止するレスポンシブ2列レイアウト */
     .grid-2col {
       display: flex;
       flex-direction: column;
@@ -358,7 +366,6 @@
         </div>
       </div>
 
-      <!-- モバイル（iPhone）での重なりを防止する縦並び構成 -->
       <div class="grid-2col">
         <div>
           <label>処理日</label>
@@ -404,6 +411,10 @@
 
   <!-- タブ4: 個人在庫 & 差異修正 -->
   <div id="tab-stock" class="tab-content">
+    <div id="minusStockAlertPanel" style="display:none; background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; padding:10px; border-radius:8px; margin-bottom:12px; font-weight:bold;">
+      ⚠️ マイナス在庫が発生している部品があります。在庫数を確認の上、必要に応じて差異修正を行ってください。
+    </div>
+
     <div class="panel">
       <div class="section-title">
         <span>👤 個人・拠点別在庫一覧</span>
@@ -445,6 +456,19 @@
       <div class="section-title"><span>📋 差異修正履歴ログ</span></div>
       <div id="diffLogContainer" style="max-height: 200px; overflow-y: auto; font-size: 0.85rem; color: #555;">
         まだ修正履歴はありません。
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. マイナス在庫強行確認モーダル -->
+  <div id="minusConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1200; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:420px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+      <div class="section-title" style="color:#d9534f;"><span>⚠️ 在庫不足（マイナス発生）の警告</span></div>
+      <div id="minusConfirmList" style="font-size:0.85rem; color:#333; margin-bottom:12px; max-height:200px; overflow-y:auto; background:#fff3cd; padding:8px; border-radius:6px; border:1px solid #ffeeba;"></div>
+      <p style="font-size:0.85rem; color:#555; margin-bottom:12px;">指定された持出元の所有在庫数を超えています。このままマイナス在庫として記録を続行しますか？</p>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-danger" onclick="confirmMinusAndProceed()">マイナス在庫で強行する</button>
+        <button class="btn btn-secondary" onclick="closeMinusConfirmModal()">戻って修正する</button>
       </div>
     </div>
   </div>
@@ -544,6 +568,7 @@
     let pendingMoves = [];
     let currentUnusedData = null;
     let currentDistributeMove = null;
+    let pendingReportSaveData = null; // マイナス確認時一時保持用
 
     const ALL_MEMBERS = ['平田', '山本', '向井', '井阪', '河原', '松井色素'];
 
@@ -575,7 +600,6 @@
       }
     }
 
-    // 1. Enterキーで次のフォーム項目へフォーカス移動するイベント制御（改行可能エリア除く）
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'submit') {
         e.preventDefault();
@@ -587,7 +611,6 @@
       }
     });
 
-    // 6. iPhoneキーボード被り防止：入力時に画面をスムーズにスクロール
     document.addEventListener('focusin', function(e) {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
         setTimeout(() => {
@@ -623,7 +646,6 @@
 
           renderMapList(globalPartsData);
           renderStockTable();
-          refreshDynamicSelects();
           renderUnprocessedLists();
           renderDiffLogs();
         }
@@ -917,7 +939,6 @@
       generateMoveText();
     }
 
-    // 3・4. 通常販売で出荷の制御改善（ボタン切り替え ＆ デフォルトお客様名）
     function onMoveTypeChange() {
       const type = document.getElementById('moveType').value;
       const destSelect = document.getElementById('moveDestType');
@@ -943,12 +964,10 @@
         }
       }
 
-      // 送り先リストの制御
       if (type === '大阪事務所在庫から発送（部品移動のみ）' || type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
         destSelect.innerHTML = `<option value="自由記述">お客様名（自由記述）</option>`;
         destSelect.value = '自由記述';
       } else if (type === '通常販売で出荷') {
-        // 4. デフォルトを自由記述にする
         destSelect.innerHTML = `
           <option value="自由記述" selected>お客様名（自由記述）</option>
           <option value="松井色素">松井色素</option>
@@ -961,7 +980,6 @@
         `;
       }
 
-      // 3. 通常販売で出荷の際は移動セットを行わないボタン名へ切り替え
       if (type === '通常販売で出荷') {
         submitBtn.innerText = "📋 文章を作成してコピペ";
       } else {
@@ -1147,7 +1165,6 @@
         return;
       }
 
-      // 3. 通常販売で出荷の場合は移動リスト（pending_moves）への書き込みを行わずコピペのみ
       if (type === '通常販売で出荷') {
         navigator.clipboard.writeText(document.getElementById('movePreview').innerText);
         localStorage.removeItem('draft_move');
@@ -1456,7 +1473,6 @@
       });
     }
 
-    // 1. 内容・対応を複数行入力可能なtextareaへ変更（改行対応）
     function addMachineSection() {
       const container = document.getElementById('machineSectionsContainer');
       const div = document.createElement('div');
@@ -1495,6 +1511,7 @@
       generateReportText();
     }
 
+    // 4. 使用部品の数量デフォルトを 1 に設定
     function addReportPartRow(btn) {
       const container = btn.previousElementSibling;
       const reporter = document.getElementById('repReporter').value;
@@ -1506,8 +1523,7 @@
           <div class="part-dropdown-list"></div>
         </div>
         <select style="flex:1;" class="rep-part-qty" onchange="checkReportQtyCustom(this)">
-          <option value="" disabled selected>数量</option>
-          ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}">${n}</option>`).join('')}
+          ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${n===1?'selected':''}>${n}</option>`).join('')}
           <option value="custom">自由入力...</option>
         </select>
         <select style="flex:1;" class="rep-part-source" title="持出元">
@@ -1528,7 +1544,7 @@
         const input = document.createElement('input');
         input.type = 'number';
         input.min = '1';
-        input.value = '';
+        input.value = '1';
         input.placeholder = '数量';
         input.style.flex = '1';
         input.className = 'rep-part-qty-input';
@@ -1570,17 +1586,11 @@
       });
     }
 
-    // 2. LINE報告プレビューから顧客名を除外（テキスト生成処理）
+    // 1. 同一部品の複数人所有からの持出を1行に合算 ＆ 3. LINEプレビューに同行者非表示
     function generateReportText() {
       const date = document.getElementById('repDate').value;
-      const reporter = document.getElementById('repReporter').value;
-      let companions = [];
-      document.querySelectorAll('#repCompanions input:checked').forEach(el => companions.push(el.value));
 
-      let text = `${date} 作業報告\n`;
-      // 顧客名はLINEプレビュー非表示（ログには残る）
-      if(companions.length > 0) text += `同行: ${companions.join(', ')}\n`;
-      text += `\n`;
+      let text = `${date} 作業報告\n\n`;
 
       document.querySelectorAll('.machine-section').forEach(sec => {
         const type = sec.querySelector('.rep-m-type').value;
@@ -1594,23 +1604,34 @@
         if(action) text += `対応: ${action}\n`;
 
         text += `交換部品:\n`;
-        let partCount = 0;
+
+        // 機械セクション内での同部品の合算処理
+        let aggregatedPartsMap = {};
         sec.querySelectorAll('.rep-parts-container .dynamic-row').forEach(row => {
           const pInput = row.querySelector('.rep-part-search');
           const pQtyInput = row.querySelector('.rep-part-qty') || row.querySelector('.rep-part-qty-input');
           let pName = pInput ? pInput.value.trim() : '';
-          const pQty = pQtyInput ? pQtyInput.value : '';
-          if (pName) {
+          const pQty = pQtyInput ? Number(pQtyInput.value) : 0;
+          if (pName && pQty > 0) {
+            let cleanName = pName;
             const parts = pName.split(' ');
             if (parts.length > 1) {
               parts.shift();
-              pName = parts.join(' ');
+              cleanName = parts.join(' ');
             }
-            text += `・${pName} × ${pQty}\n`;
-            partCount++;
+            aggregatedPartsMap[cleanName] = (aggregatedPartsMap[cleanName] || 0) + pQty;
           }
         });
-        if(partCount === 0) text += `なし\n`;
+
+        const keys = Object.keys(aggregatedPartsMap);
+        if (keys.length > 0) {
+          keys.forEach(k => {
+            text += `・${k} × ${aggregatedPartsMap[k]}\n`;
+          });
+        } else {
+          text += `なし\n`;
+        }
+
         if(remarks) text += `備考: ${remarks}\n`;
         text += `\n`;
       });
@@ -1620,6 +1641,52 @@
       text += `ご対応いただきありがとうございました。`;
 
       document.getElementById('reportPreview').innerText = text;
+    }
+
+    // 5. 在庫不足（マイナス）の判定ロジック
+    function checkStockShortage(usedPartsList) {
+      let shortageList = [];
+      
+      // 持出元ユーザー別に合計使用量を集計
+      let usageByUserPart = {};
+      usedPartsList.forEach(item => {
+        let partId = item.name.split(' ')[0];
+        const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.name);
+        const actualPartId = found ? found.id : partId;
+        const key = `${item.source}____${actualPartId}`;
+        
+        usageByUserPart[key] = (usageByUserPart[key] || 0) + item.qty;
+      });
+
+      // 現状在庫との照合
+      Object.keys(usageByUserPart).forEach(key => {
+        const [sourceUser, partId] = key.split('____');
+        const usedQty = usageByUserPart[key];
+        const found = globalPartsData.find(p => p.id === partId);
+
+        if (found) {
+          let currentStock = 0;
+          if (sourceUser === '大阪事務所') currentStock = found.stock_osaka;
+          else if (sourceUser === '平田') currentStock = found.stock_hirata;
+          else if (sourceUser === '山本') currentStock = found.stock_yamamoto;
+          else if (sourceUser === '向井') currentStock = found.stock_mukai;
+          else if (sourceUser === '井阪') currentStock = found.stock_isaka;
+          else if (sourceUser === '河原') currentStock = found.stock_kawahara;
+          else if (sourceUser === '松井色素') currentStock = found.stock_matsui;
+
+          if (currentStock < usedQty) {
+            shortageList.push({
+              user: sourceUser,
+              partName: `${found.id} ${found.name}`,
+              currentStock: currentStock,
+              usedQty: usedQty,
+              afterStock: currentStock - usedQty
+            });
+          }
+        }
+      });
+
+      return shortageList;
     }
 
     async function copyReportText() {
@@ -1666,6 +1733,41 @@
         });
       });
 
+      // 5. 在庫不足チェック
+      const shortages = checkStockShortage(usedPartsList);
+      if (shortages.length > 0) {
+        pendingReportSaveData = {
+          usedPartsList,
+          reportLogParamsData: {
+            reporter, companions, customer, reportDetailsObj, overallRemarks
+          }
+        };
+
+        const listContainer = document.getElementById('minusConfirmList');
+        listContainer.innerHTML = shortages.map(s => 
+          `<div><b>【${s.user}】 ${s.partName}</b><br>現在庫: ${s.currentStock} / 使用量: ${s.usedQty} → <span style="color:red; font-weight:bold;">処理後: ${s.afterStock}</span></div>`
+        ).join('<hr style="margin:4px 0; border:0; border-top:1px dashed #ccc;">');
+
+        document.getElementById('minusConfirmModal').style.display = 'flex';
+        return;
+      }
+
+      await executeReportSave(usedPartsList, { reporter, companions, customer, reportDetailsObj, overallRemarks });
+    }
+
+    function closeMinusConfirmModal() {
+      document.getElementById('minusConfirmModal').style.display = 'none';
+      pendingReportSaveData = null;
+    }
+
+    async function confirmMinusAndProceed() {
+      if (!pendingReportSaveData) return;
+      const { usedPartsList, reportLogParamsData } = pendingReportSaveData;
+      closeMinusConfirmModal();
+      await executeReportSave(usedPartsList, reportLogParamsData);
+    }
+
+    async function executeReportSave(usedPartsList, paramsData) {
       showLoading("作業報告・ログを保存中...");
       try {
         if (usedPartsList.length > 0) {
@@ -1681,15 +1783,14 @@
         const now = new Date();
         const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
         
-        // 2. ログにはしっかり顧客名を記録する
         const reportLogParams = new URLSearchParams({
           action: 'saveReportLog',
           time: timeStr,
-          reporter: reporter,
-          companions: companions.join(', '),
-          customer: customer,
-          detailsJson: JSON.stringify(reportDetailsObj),
-          overallRemarks: overallRemarks
+          reporter: paramsData.reporter,
+          companions: paramsData.companions.join(', '),
+          customer: paramsData.customer,
+          detailsJson: JSON.stringify(paramsData.reportDetailsObj),
+          overallRemarks: paramsData.overallRemarks
         });
         await fetch(GAS_API_URL + "?" + reportLogParams.toString());
 
@@ -1777,39 +1878,60 @@
     }
 
     // ================= 個人在庫・棚卸・差異修正 =================
+    // 5. マイナス在庫のアラート枠表示 ＆ テーブル上での赤字ハイライト
     function renderStockTable() {
       const kw = document.getElementById('stockSearchInput').value.trim();
       const tbody = document.getElementById('stockTableBody');
+      const alertPanel = document.getElementById('minusStockAlertPanel');
       tbody.innerHTML = '';
 
       if (globalPartsData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#888;">データが読み込まれていません</td></tr>`;
+        alertPanel.style.display = 'none';
         return;
       }
+
+      let hasMinusStockGlobal = false;
 
       const filtered = globalPartsData.filter(p => !kw || isMatched(p.id, kw) || isMatched(p.name, kw));
       if(filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">該当する部品がありません</td></tr>`;
-        return;
+      } else {
+        filtered.forEach(p => {
+          const stocks = [
+            p.stock_osaka, p.stock_hirata, p.stock_yamamoto,
+            p.stock_mukai, p.stock_isaka, p.stock_kawahara, p.stock_matsui
+          ];
+          const hasMinusInRow = stocks.some(s => Number(s) < 0);
+          if (hasMinusInRow) hasMinusStockGlobal = true;
+
+          const total = stocks.reduce((sum, s) => sum + (Number(s) || 0), 0);
+
+          const formatCell = (val) => Number(val) < 0 ? `<td class="minus-stock">${val}</td>` : `<td>${val}</td>`;
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><b>${p.id}</b></td>
+            <td><b>${p.name}</b></td>
+            ${formatCell(p.stock_osaka)}
+            ${formatCell(p.stock_hirata)}
+            ${formatCell(p.stock_yamamoto)}
+            ${formatCell(p.stock_mukai)}
+            ${formatCell(p.stock_isaka)}
+            ${formatCell(p.stock_kawahara)}
+            ${formatCell(p.stock_matsui)}
+            <td><b>${total}</b></td>
+          `;
+          tbody.appendChild(tr);
+        });
       }
 
-      filtered.forEach(p => {
-        const total = (Number(p.stock_osaka)||0) + (Number(p.stock_hirata)||0) + (Number(p.stock_yamamoto)||0) + (Number(p.stock_mukai)||0) + (Number(p.stock_isaka)||0) + (Number(p.stock_kawahara)||0) + (Number(p.stock_matsui)||0);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><b>${p.id}</b></td>
-          <td><b>${p.name}</b></td>
-          <td>${p.stock_osaka}</td>
-          <td>${p.stock_hirata}</td>
-          <td>${p.stock_yamamoto}</td>
-          <td>${p.stock_mukai}</td>
-          <td>${p.stock_isaka}</td>
-          <td>${p.stock_kawahara}</td>
-          <td>${p.stock_matsui}</td>
-          <td><b>${total}</b></td>
-        `;
-        tbody.appendChild(tr);
-      });
+      // マイナス在庫アラートの表示制御
+      if (hasMinusStockGlobal) {
+        alertPanel.style.display = 'block';
+      } else {
+        alertPanel.style.display = 'none';
+      }
     }
 
     function showDiffPartDropdown(input) {
