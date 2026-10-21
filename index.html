@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- iOSでの勝手なズーム拡大を防ぐviewport設定 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>メンテナンス統合管理システム</title>
   <style>
     :root {
@@ -20,6 +21,7 @@
       background-color: var(--bg-color);
       margin: 0;
       padding: 8px;
+      padding-bottom: 250px; /* iPhoneキーボード被り対策の十分な下部余白 */
       color: #333;
       overflow-x: hidden;
     }
@@ -76,11 +78,12 @@
       justify-content: space-between;
       align-items: center;
     }
+    /* iOSの勝手な拡大（ズーム）を防ぐためfont-sizeを16px以上に統一 */
     input, select, textarea {
       width: 100%;
       max-width: 100%;
-      padding: 8px 10px;
-      font-size: 0.9rem;
+      padding: 10px;
+      font-size: 16px !important; 
       border: 1.5px solid var(--border-color);
       border-radius: 6px;
       outline: none;
@@ -91,7 +94,7 @@
       border-color: var(--accent-color);
     }
     label {
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       font-weight: bold;
       color: #555;
       display: block;
@@ -101,10 +104,10 @@
       background: var(--accent-color);
       color: #fff;
       border: none;
-      padding: 10px 16px;
+      padding: 12px 16px;
       border-radius: 6px;
       font-weight: bold;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       cursor: pointer;
       width: 100%;
       text-align: center;
@@ -115,7 +118,7 @@
     .btn-success { background: var(--success-color); }
     .btn-danger { background: var(--highlight-color); }
     .btn-warning { background: var(--warning-color); color: #212529; }
-    .btn-sm { padding: 4px 8px; font-size: 0.75rem; width: auto; }
+    .btn-sm { padding: 6px 10px; font-size: 0.8rem; width: auto; }
 
     .shelf-group { margin-bottom: 12px; background: #fafafa; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; overflow: hidden; }
     .grid-a { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
@@ -131,7 +134,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       font-weight: bold;
       cursor: pointer;
     }
@@ -155,18 +158,19 @@
     .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; width: 100%; min-width: 0; }
     .preview-box { background: #e9ecef; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; margin-top: 8px; word-break: break-all; }
 
+    /* モバイルでの被りを完全防止するレスポンシブ2列レイアウト */
     .grid-2col {
-      display: grid;
-      grid-template-columns: 4fr 6fr;
+      display: flex;
+      flex-direction: column;
       gap: 6px;
       width: 100%;
-      min-width: 0;
-      overflow: hidden;
       margin-bottom: 8px;
     }
-    .grid-2col > * {
-      min-width: 0;
-      width: 100%;
+    @media (min-width: 600px) {
+      .grid-2col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
     }
 
     .part-search-container { position: relative; flex: 2; min-width: 0; }
@@ -174,12 +178,11 @@
       position: absolute; top: 100%; left: 0; width: 100%; max-height: 150px; overflow-y: auto;
       background: #fff; border: 1px solid var(--border-color); border-radius: 4px; z-index: 100; display: none;
     }
-    .part-dropdown-item { padding: 6px 8px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #f1f3f5; }
+    .part-dropdown-item { padding: 8px; font-size: 0.85rem; cursor: pointer; border-bottom: 1px solid #f1f3f5; }
     .part-dropdown-item:hover { background: #f8f9fa; }
     .error-msg { color: #ff3b30; font-size: 0.8rem; font-weight: bold; margin-top: -4px; margin-bottom: 8px; display: none; }
     .unproc-card { background: #fff3cd; border: 1px solid #ffeeba; padding: 8px; border-radius: 6px; margin-bottom: 6px; font-size: 0.85rem; }
 
-    /* 通信中ローディングオーバーレイ */
     #loadingOverlay {
       display: none;
       position: fixed;
@@ -330,7 +333,7 @@
 
       <label>生成されたLINEテキスト</label>
       <div class="preview-box" id="movePreview"></div>
-      <button class="btn btn-success" style="margin-top:8px;" onclick="copyMoveTextAndSet()">📋 文章を作成してコピペ & 部品移動をセット</button>
+      <button class="btn btn-success" id="moveSubmitBtn" style="margin-top:8px;" onclick="copyMoveTextAndSet()">📋 文章を作成してコピペ & 部品移動をセット</button>
 
       <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px; text-align: center;">
         <a href="https://tdc-artjet-stock-mgt.web.app/" target="_blank" class="btn btn-secondary">🔗 TDC現在庫ページ</a>
@@ -355,6 +358,7 @@
         </div>
       </div>
 
+      <!-- モバイル（iPhone）での重なりを防止する縦並び構成 -->
       <div class="grid-2col">
         <div>
           <label>処理日</label>
@@ -571,6 +575,27 @@
       }
     }
 
+    // 1. Enterキーで次のフォーム項目へフォーカス移動するイベント制御（改行可能エリア除く）
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'submit') {
+        e.preventDefault();
+        const focusables = Array.from(document.querySelectorAll('input:not([type="hidden"]), select, textarea, button'));
+        const index = focusables.indexOf(e.target);
+        if (index > -1 && index + 1 < focusables.length) {
+          focusables[index + 1].focus();
+        }
+      }
+    });
+
+    // 6. iPhoneキーボード被り防止：入力時に画面をスムーズにスクロール
+    document.addEventListener('focusin', function(e) {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+        setTimeout(() => {
+          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
+    });
+
     window.addEventListener('DOMContentLoaded', async () => {
       initMapGrid();
       document.getElementById('repDate').valueAsDate = new Date();
@@ -589,7 +614,6 @@
     async function fetchAllDataFromGAS() {
       showLoading("最新データを読み込み中...");
       try {
-        // キャッシュ無効化のためのタイムスタンプ
         const response = await fetch(GAS_API_URL + "?action=getData&_t=" + Date.now());
         const json = await response.json();
         if (json.status === "success") {
@@ -893,12 +917,14 @@
       generateMoveText();
     }
 
+    // 3・4. 通常販売で出荷の制御改善（ボタン切り替え ＆ デフォルトお客様名）
     function onMoveTypeChange() {
       const type = document.getElementById('moveType').value;
       const destSelect = document.getElementById('moveDestType');
       const receiverSection = document.getElementById('receiverSection');
       const addItemBtn = document.getElementById('addItemBtn');
       const moveContainer = document.getElementById('moveItemsContainer');
+      const submitBtn = document.getElementById('moveSubmitBtn');
 
       if (type === '倉庫移動' || type === '大阪事務所在庫から発送（部品移動のみ）') {
         receiverSection.style.display = 'block';
@@ -917,13 +943,15 @@
         }
       }
 
+      // 送り先リストの制御
       if (type === '大阪事務所在庫から発送（部品移動のみ）' || type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
         destSelect.innerHTML = `<option value="自由記述">お客様名（自由記述）</option>`;
         destSelect.value = '自由記述';
       } else if (type === '通常販売で出荷') {
+        // 4. デフォルトを自由記述にする
         destSelect.innerHTML = `
+          <option value="自由記述" selected>お客様名（自由記述）</option>
           <option value="松井色素">松井色素</option>
-          <option value="自由記述">お客様名（自由記述）</option>
         `;
       } else {
         destSelect.innerHTML = `
@@ -932,6 +960,14 @@
           <option value="自由記述">お客様名（自由記述）</option>
         `;
       }
+
+      // 3. 通常販売で出荷の際は移動セットを行わないボタン名へ切り替え
+      if (type === '通常販売で出荷') {
+        submitBtn.innerText = "📋 文章を作成してコピペ";
+      } else {
+        submitBtn.innerText = "📋 文章を作成してコピペ & 部品移動をセット";
+      }
+
       updateMoveDest();
       generateMoveText();
     }
@@ -1108,6 +1144,14 @@
 
       if (items.length === 0) {
         alert("⚠️ 移動する商品・数量を追加してください。");
+        return;
+      }
+
+      // 3. 通常販売で出荷の場合は移動リスト（pending_moves）への書き込みを行わずコピペのみ
+      if (type === '通常販売で出荷') {
+        navigator.clipboard.writeText(document.getElementById('movePreview').innerText);
+        localStorage.removeItem('draft_move');
+        alert("📋 文章をコピーしました！");
         return;
       }
 
@@ -1412,6 +1456,7 @@
       });
     }
 
+    // 1. 内容・対応を複数行入力可能なtextareaへ変更（改行対応）
     function addMachineSection() {
       const container = document.getElementById('machineSectionsContainer');
       const div = document.createElement('div');
@@ -1436,10 +1481,10 @@
             <input type="text" class="rep-m-name" placeholder="例: 1号機" oninput="generateReportText(); saveDraft('report');">
           </div>
         </div>
-        <label>内容</label>
-        <input type="text" class="rep-m-content" placeholder="作業内容" oninput="generateReportText(); saveDraft('report');">
-        <label>対応</label>
-        <input type="text" class="rep-m-action" placeholder="対応内容" oninput="generateReportText(); saveDraft('report');">
+        <label>内容（改行可）</label>
+        <textarea class="rep-m-content" placeholder="作業内容を入力" rows="2" oninput="generateReportText(); saveDraft('report');"></textarea>
+        <label>対応（改行可）</label>
+        <textarea class="rep-m-action" placeholder="対応内容を入力" rows="2" oninput="generateReportText(); saveDraft('report');"></textarea>
         <label>使用部品（持出元の個人選択対応）</label>
         <div class="rep-parts-container"></div>
         <button class="btn btn-secondary btn-sm" onclick="addReportPartRow(this); saveDraft('report');">＋ 部品を追加</button>
@@ -1525,15 +1570,15 @@
       });
     }
 
+    // 2. LINE報告プレビューから顧客名を除外（テキスト生成処理）
     function generateReportText() {
       const date = document.getElementById('repDate').value;
       const reporter = document.getElementById('repReporter').value;
       let companions = [];
       document.querySelectorAll('#repCompanions input:checked').forEach(el => companions.push(el.value));
-      const customer = document.getElementById('repCustomer').value.trim();
 
       let text = `${date} 作業報告\n`;
-      if(customer) text += `顧客: ${customer}\n`;
+      // 顧客名はLINEプレビュー非表示（ログには残る）
       if(companions.length > 0) text += `同行: ${companions.join(', ')}\n`;
       text += `\n`;
 
@@ -1623,7 +1668,6 @@
 
       showLoading("作業報告・ログを保存中...");
       try {
-        // 在庫減算
         if (usedPartsList.length > 0) {
           for (let item of usedPartsList) {
             let partId = item.name.split(' ')[0];
@@ -1634,10 +1678,10 @@
           }
         }
 
-        // 作業報告ログを専用の saveReportLog アクションで独立保存
         const now = new Date();
         const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
         
+        // 2. ログにはしっかり顧客名を記録する
         const reportLogParams = new URLSearchParams({
           action: 'saveReportLog',
           time: timeStr,
