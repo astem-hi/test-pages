@@ -29,6 +29,14 @@
       text-align: center;
       margin: 4px 0 12px 0;
     }
+    
+    /* PC表示時に画面幅一杯になりすぎず見やすくするための外枠ラッパー */
+    .tab-content { display: none; max-width: 800px; margin: 0 auto; }
+    .tab-content.active { display: block; }
+
+    /* 棚マップタブのみ左右2カラムのため少し広めのmax-width */
+    #tab-map { max-width: 1100px; }
+
     .tab-nav {
       display: flex;
       gap: 4px;
@@ -37,6 +45,9 @@
       padding: 4px;
       border-radius: 8px;
       overflow-x: auto;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
     }
     .tab-btn {
       flex: 1;
@@ -56,8 +67,6 @@
       color: var(--accent-color);
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
 
     .panel {
       background: var(--card-bg);
@@ -265,7 +274,7 @@
   <div id="tab-map" class="tab-content active">
     <div class="map-container">
       <div class="map-left panel">
-        <div class="section-title"><span>部品検索・棚マップ <span style="font-size:0.75rem; color:#007bff; font-weight:normal;">(💡 右側一覧の部品名をタップすると在庫管理・移動ポップアップが開きます)</span></span></div>
+        <div class="section-title"><span>部品検索・棚マップ <span style="font-size:0.75rem; color:#007bff; font-weight:normal;">(💡 一覧の部品名をタップすると在庫管理・移動ポップアップが開きます)</span></span></div>
         <input type="text" id="mapSearchInput" placeholder="🔍 品番・品名・棚番号を曖昧検索..." oninput="handleMapSearch()">
         
         <div class="shelf-group">
@@ -2028,7 +2037,6 @@
       return shortageList;
     }
 
-    // 初期不良で客先在庫から使った場合の補填チェック管理
     let pendingDefectReplenishQueue = [];
 
     async function copyReportText() {
@@ -2093,7 +2101,6 @@
         });
       });
 
-      // 初期不良で客先在庫が選ばれていた場合の補填確認
       if (defectPartsWithTempPurchased.length > 0) {
         pendingDefectReplenishQueue = [...defectPartsWithTempPurchased];
         pendingReportSaveData = {
@@ -2130,7 +2137,6 @@
     function showNextDefectReplenishModal() {
       if (pendingDefectReplenishQueue.length === 0) {
         document.getElementById('defectReplenishModal').style.display = 'none';
-        // 次のステップへ
         if (pendingReportSaveData) {
           const shortages = checkStockShortage(pendingReportSaveData.usedPartsList);
           if (shortages.length > 0) {
