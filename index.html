@@ -108,7 +108,6 @@
       margin-bottom: 3px;
     }
     
-    /* 3. 同行メンバーチェックボックス用復元デザイン */
     .checkbox-group {
       display: flex;
       flex-wrap: wrap;
@@ -191,6 +190,7 @@
     th, td { border: 1px solid var(--border-color); padding: 6px; text-align: left; }
     th { background: #f1f3f5; }
     .minus-stock { color: #ff3b30; font-weight: bold; background-color: #ffe6e6; }
+    .clickable-part { color: var(--accent-color); text-decoration: underline; cursor: pointer; font-weight: bold; }
     
     .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; width: 100%; min-width: 0; }
     .preview-box { background: #e9ecef; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; margin-top: 8px; word-break: break-all; }
@@ -310,7 +310,6 @@
         <option value="ヘッドクリーナー在庫落とし">ヘッドクリーナー在庫落とし</option>
       </select>
 
-      <!-- 1 & 2. 減算元・発送元の選択セクション -->
       <div id="moveSourceSection" style="display:none;">
         <label>減算元・持出元 <span style="color:red;">*必須</span></label>
         <select id="moveSourceUser" onchange="generateMoveText(); saveDraft('move');">
@@ -428,7 +427,6 @@
         </div>
       </div>
 
-      <!-- 3. 同行メンバーデザインの復元 -->
       <label>同行メンバー (複数選択可)</label>
       <div id="repCompanions" class="checkbox-group">
         <label class="checkbox-label"><input type="checkbox" value="平田" onchange="generateReportText(); saveDraft('report');"> 平田</label>
@@ -460,7 +458,6 @@
       ⚠️ マイナス在庫が発生している部品があります。在庫数を確認の上、必要に応じて差異修正を行ってください。
     </div>
 
-    <!-- 2. お客様仮在庫の個人倉庫戻し管理パネル -->
     <div class="panel" id="tempCustomerStockPanel" style="display:none; background:#e8f4f8; border:1px solid #b8daff;">
       <div class="section-title" style="color:#004085;"><span>📦 お客様仮在庫 (個人返却・戻し処理)</span></div>
       <div id="tempCustomerStockList" style="max-height: 200px; overflow-y: auto;"></div>
@@ -468,7 +465,7 @@
 
     <div class="panel">
       <div class="section-title">
-        <span>👤 個人・拠点別在庫一覧</span>
+        <span>👤 個人・拠点別在庫一覧 <span style="font-size:0.75rem; color:#007bff; font-weight:normal;">(💡 部品名・品番をタップすると移動ポップアップが開きます)</span></span>
         <div style="display:flex; gap:6px;">
           <button class="btn btn-danger btn-sm" onclick="openDiffModal()">⚠️ 差異修正</button>
           <button class="btn btn-secondary btn-sm" onclick="downloadInventoryCSV()">📥 棚卸CSVダウンロード</button>
@@ -507,6 +504,56 @@
       <div class="section-title"><span>📋 差異修正履歴ログ</span></div>
       <div id="diffLogContainer" style="max-height: 200px; overflow-y: auto; font-size: 0.85rem; color: #555;">
         まだ修正履歴はありません。
+      </div>
+    </div>
+  </div>
+
+  <!-- 部品タップ時の在庫移動ポップアップモーダル -->
+  <div id="partModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1250; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:16px; border-radius:12px; width:92%; max-width:460px; box-shadow:0 6px 18px rgba(0,0,0,0.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-color); padding-bottom:6px; margin-bottom:10px;">
+        <b id="partModalTitle" style="font-size:0.95rem; color:#333;">部品名</b>
+        <button class="btn btn-secondary btn-sm" onclick="closePartModal()">✕ 閉じる</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:12px;" id="partModalTiles"></div>
+
+      <div style="display:flex; gap:4px; background:#e9ecef; padding:4px; border-radius:8px; margin-bottom:12px;">
+        <button class="btn btn-sm" style="flex:1; background:var(--accent-color); color:#fff;" id="tabMove" onclick="switchPartModalTab('move')">⇄ 移動</button>
+        <button class="btn btn-sm btn-secondary" style="flex:1;" onclick="alert('※使用は作業報告タブの「使用部品」から行ってください。')">－ 使用</button>
+        <button class="btn btn-sm btn-secondary" style="flex:1;" onclick="alert('※入荷は倉庫移動タブの未処理リストから行ってください。')">＋ 入荷</button>
+      </div>
+
+      <div id="partModalMoveSection">
+        <div class="grid-2col">
+          <div>
+            <label>移動元（出）</label>
+            <select id="modalSourceUser">
+              <option value="大阪事務所">大阪事務所</option>
+              <option value="平田">平田</option>
+              <option value="山本">山本</option>
+              <option value="向井">向井</option>
+              <option value="井阪">井阪</option>
+              <option value="河原">河原</option>
+              <option value="松井色素">松井色素</option>
+            </select>
+          </div>
+          <div>
+            <label>移動先（入）</label>
+            <select id="modalDestUser">
+              <option value="大阪事務所">大阪事務所</option>
+              <option value="平田">平田</option>
+              <option value="山本">山本</option>
+              <option value="向井">向井</option>
+              <option value="井阪">井阪</option>
+              <option value="河原">河原</option>
+              <option value="松井色素">松井色素</option>
+            </select>
+          </div>
+        </div>
+        <label>数量</label>
+        <input type="number" id="modalMoveQty" min="1" value="1" placeholder="数量を入力">
+        <button class="btn btn-success" style="margin-top:4px;" onclick="executeStockMoveFromModal()">移動を実行</button>
       </div>
     </div>
   </div>
@@ -589,7 +636,6 @@
         <div class="part-dropdown-list" id="diffPartDropdownList"></div>
       </div>
 
-      <!-- 4. 差異修正数量の並び順とデフォルト0設定 -->
       <label>数量増減 <span style="color:red;">*必須</span></label>
       <select id="diffQtySelect" onchange="checkDiffQtyCustom(this)">
         <option value="custom_top">自由入力（数値指定）...</option>
@@ -621,6 +667,7 @@
     let currentUnusedData = null;
     let currentDistributeMove = null;
     let pendingReportSaveData = null;
+    let currentModalPartId = null;
 
     const ALL_MEMBERS = ['平田', '山本', '向井', '井阪', '河原', '松井色素'];
 
@@ -996,7 +1043,6 @@
       generateMoveText();
     }
 
-    // 1 & 2. 種別変更時に「持出元・減算元」の選択セクションを表示制御
     function onMoveTypeChange() {
       const type = document.getElementById('moveType').value;
       const destSelect = document.getElementById('moveDestType');
@@ -1012,7 +1058,6 @@
         receiverSection.style.display = 'none';
       }
 
-      // 1 & 2. 発送元・減算元の選択セクション表示制御
       if (type === '大阪事務所在庫から出荷（売り立て処理のみ）' || type === '大阪事務所在庫から発送（部品移動のみ）') {
         sourceSection.style.display = 'block';
       } else {
@@ -1235,7 +1280,6 @@
 
       const sourceUser = document.getElementById('moveSourceUser').value || '大阪事務所';
 
-      // 1. 売り立て処理の場合、指定持出元からの減算を実行
       if (type === '大阪事務所在庫から出荷（売り立て処理のみ）') {
         showLoading("在庫減算処理を実行中...");
         try {
@@ -1256,7 +1300,6 @@
         return;
       }
 
-      // 2. 部品移動のみの場合、持出元から減算＆お客様仮在庫（pending_moves）に登録
       if (type === '大阪事務所在庫から発送（部品移動のみ）') {
         showLoading("持出元減算・仮在庫登録中...");
         try {
@@ -1335,7 +1378,6 @@
       }
     }
 
-    // 2. お客様仮在庫の個人倉庫戻し処理UIの描画
     function renderTempCustomerStock() {
       const panel = document.getElementById('tempCustomerStockPanel');
       const list = document.getElementById('tempCustomerStockList');
@@ -1396,7 +1438,6 @@
       }
     }
 
-    // ================= 未処理リスト・在庫反映 =================
     function renderUnprocessedLists() {
       const todayStr = new Date().toISOString().slice(0, 10);
       const availableMoves = pendingMoves.filter(m => m.status === 'pending' && m.arrivalDate <= todayStr);
@@ -1525,9 +1566,7 @@
             </select>
             <select style="flex:1;" class="rep-part-source">
               <option value="大阪事務所">大阪事務所</option>
-              <optgroup label="お客様仮在庫">
-                <option value="TEMP__${move.customer}" selected>仮在庫: ${move.customer}</option>
-              </optgroup>
+              <option value="TEMP__PURCHASED" selected>客先在庫(購入済)</option>
               <optgroup label="個人在庫">
                 ${ALL_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('')}
               </optgroup>
@@ -1663,20 +1702,15 @@
       generateReportText();
     }
 
-    // 2. 作業報告の持出元ドロップダウンにお客様仮在庫を追加
+    // 1. 客先在庫(購入済)を固定選択肢として組み込み
     function refreshReportSourceSelects() {
       const reporter = document.getElementById('repReporter').value;
-      const activePending = pendingMoves.filter(m => m.status === 'pending');
 
-      document.querySelectorAll('.rep-part-source').forEach(sel => {
+      document.querySelectorAll('.rep-part-source, .rep-defect-source').forEach(sel => {
         const currentVal = sel.value;
         sel.innerHTML = `
           <option value="大阪事務所">大阪事務所</option>
-          ${activePending.length > 0 ? `
-            <optgroup label="お客様仮在庫">
-              ${activePending.map(m => `<option value="TEMP__${m.customer}">仮在庫: ${m.customer}</option>`).join('')}
-            </optgroup>
-          ` : ''}
+          <option value="TEMP__PURCHASED">客先在庫(購入済)</option>
           <optgroup label="個人在庫">
             ${ALL_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('')}
           </optgroup>
@@ -1713,9 +1747,15 @@
         <textarea class="rep-m-content" placeholder="作業内容を入力" rows="2" oninput="generateReportText(); saveDraft('report');"></textarea>
         <label>対応（改行可）</label>
         <textarea class="rep-m-action" placeholder="対応内容を入力" rows="2" oninput="generateReportText(); saveDraft('report');"></textarea>
-        <label>使用部品（持出元の個人選択対応）</label>
+        
+        <label>使用部品</label>
         <div class="rep-parts-container"></div>
-        <button class="btn btn-secondary btn-sm" onclick="addReportPartRow(this); saveDraft('report');">＋ 部品を追加</button>
+        <button class="btn btn-secondary btn-sm" onclick="addReportPartRow(this); saveDraft('report');" style="margin-bottom:6px;">＋ 使用部品を追加</button>
+
+        <label style="color:#d9534f; margin-top:8px;">🚨 初期不良部品（※LINEには表示されません）</label>
+        <div class="rep-defect-container"></div>
+        <button class="btn btn-secondary btn-sm" onclick="addReportDefectRow(this); saveDraft('report');" style="margin-bottom:6px; background:#f0ad4e; border-color:#eea236;">＋ 初期不良部品を追加</button>
+
         <label style="margin-top:6px;">機器別備考</label>
         <input type="text" class="rep-m-remarks" placeholder="特記事項があれば" oninput="generateReportText(); saveDraft('report');">
       `;
@@ -1726,13 +1766,12 @@
     function addReportPartRow(btn) {
       const container = btn.previousElementSibling;
       const reporter = document.getElementById('repReporter').value;
-      const activePending = pendingMoves.filter(m => m.status === 'pending');
 
       const row = document.createElement('div');
       row.className = 'dynamic-row';
       row.innerHTML = `
         <div class="part-search-container" style="flex:2;">
-          <input type="text" class="rep-part-search" placeholder="🔍 品番・品名検索 or 直接入力..." oninput="filterReportDropdown(this)" onfocus="showReportDropdown(this)">
+          <input type="text" class="rep-part-search" placeholder="🔍 品番・品名検索..." oninput="filterReportDropdown(this)" onfocus="showReportDropdown(this)">
           <div class="part-dropdown-list"></div>
         </div>
         <select style="flex:1;" class="rep-part-qty" onchange="checkReportQtyCustom(this)">
@@ -1741,13 +1780,9 @@
         </select>
         <select style="flex:1;" class="rep-part-source" title="持出元">
           <option value="大阪事務所">大阪事務所</option>
-          ${activePending.length > 0 ? `
-            <optgroup label="お客様仮在庫">
-              ${activePending.map(m => `<option value="TEMP__${m.customer}">仮在庫: ${m.customer}</option>`).join('')}
-            </optgroup>
-          ` : ''}
+          <option value="TEMP__PURCHASED" selected>客先在庫(購入済)</option>
           <optgroup label="個人在庫">
-            ${ALL_MEMBERS.map(m => `<option value="${m}" ${m===reporter?'selected':''}>${m}</option>`).join('')}
+            ${ALL_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('')}
           </optgroup>
         </select>
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
@@ -1755,6 +1790,32 @@
       container.appendChild(row);
       populateReportDropdown(row.querySelector('.part-dropdown-list'), '');
       generateReportText();
+    }
+
+    function addReportDefectRow(btn) {
+      const container = btn.previousElementSibling;
+      const reporter = document.getElementById('repReporter').value;
+
+      const row = document.createElement('div');
+      row.className = 'dynamic-row';
+      row.innerHTML = `
+        <div class="part-search-container" style="flex:2;">
+          <input type="text" class="rep-defect-search" placeholder="🔍 不良部品 検索..." oninput="filterReportDropdown(this)" onfocus="showReportDropdown(this)">
+          <div class="part-dropdown-list"></div>
+        </div>
+        <select style="flex:1;" class="rep-defect-qty">
+          ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${n===1?'selected':''}>${n}</option>`).join('')}
+        </select>
+        <select style="flex:1;" class="rep-defect-source" title="減算元">
+          <option value="大阪事務所">大阪事務所</option>
+          <optgroup label="個人在庫">
+            ${ALL_MEMBERS.map(m => `<option value="${m}" ${m===reporter?'selected':''}>${m}</option>`).join('')}
+          </optgroup>
+        </select>
+        <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove();">削除</button>
+      `;
+      container.appendChild(row);
+      populateReportDropdown(row.querySelector('.part-dropdown-list'), '');
     }
 
     function checkReportQtyCustom(sel) {
@@ -1804,6 +1865,7 @@
       });
     }
 
+    // 1. 客先在庫(購入済)選択時のLINE表記: `・部品名 × 数量(お客様在庫より使用)`
     function generateReportText() {
       const date = document.getElementById('repDate').value;
 
@@ -1826,8 +1888,12 @@
         sec.querySelectorAll('.rep-parts-container .dynamic-row').forEach(row => {
           const pInput = row.querySelector('.rep-part-search');
           const pQtyInput = row.querySelector('.rep-part-qty') || row.querySelector('.rep-part-qty-input');
+          const pSourceSel = row.querySelector('.rep-part-source');
+
           let pName = pInput ? pInput.value.trim() : '';
           const pQty = pQtyInput ? Number(pQtyInput.value) : 0;
+          const pSource = pSourceSel ? pSourceSel.value : '';
+
           if (pName && pQty > 0) {
             let cleanName = pName;
             const parts = pName.split(' ');
@@ -1835,7 +1901,13 @@
               parts.shift();
               cleanName = parts.join(' ');
             }
-            aggregatedPartsMap[cleanName] = (aggregatedPartsMap[cleanName] || 0) + pQty;
+            
+            let labelKey = cleanName;
+            if (pSource === 'TEMP__PURCHASED') {
+              labelKey = `${cleanName}(お客様在庫より使用)`;
+            }
+
+            aggregatedPartsMap[labelKey] = (aggregatedPartsMap[labelKey] || 0) + pQty;
           }
         });
 
@@ -1864,7 +1936,7 @@
       let usageByUserPart = {};
 
       usedPartsList.forEach(item => {
-        if (item.source.startsWith('TEMP__')) return; // お客様仮在庫はスキップ
+        if (item.source === 'TEMP__PURCHASED') return; // 客先在庫(購入済)は減算なしなのでスキップ
 
         let partId = item.name.split(' ')[0];
         const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.name);
@@ -1938,6 +2010,20 @@
           }
         });
 
+        sec.querySelectorAll('.rep-defect-container .dynamic-row').forEach(row => {
+          const dInput = row.querySelector('.rep-defect-search');
+          const dQtyInput = row.querySelector('.rep-defect-qty');
+          const dSourceSel = row.querySelector('.rep-defect-source');
+
+          let dName = dInput ? dInput.value.trim() : '';
+          const dQty = dQtyInput ? Number(dQtyInput.value) : 0;
+          const dSource = dSourceSel ? dSourceSel.value : reporter;
+
+          if (dName && dQty > 0) {
+            usedPartsList.push({ name: dName, qty: dQty, source: dSource, isDefect: true });
+          }
+        });
+
         reportDetailsObj.push({
           type: type,
           name: mName,
@@ -1986,14 +2072,7 @@
       try {
         if (usedPartsList.length > 0) {
           for (let item of usedPartsList) {
-            // 仮在庫からの消化の場合は、対応する pending_moves のステータスを更新
-            if (item.source.startsWith('TEMP__')) {
-              const customerName = item.source.replace('TEMP__', '');
-              const foundMove = pendingMoves.find(m => m.customer === customerName && m.status === 'pending');
-              if (foundMove) {
-                await updatePendingStatus(foundMove.id, 'processed');
-              }
-            } else {
+            if (item.source !== 'TEMP__PURCHASED') {
               let partId = item.name.split(' ')[0];
               const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.name);
               if (found) {
@@ -2100,7 +2179,7 @@
       }
     }
 
-    // ================= 個人在庫・棚卸・差異修正 =================
+    // ================= 個人在庫・棚卸・差異修正・ポップアップ移動 =================
     function renderStockTable() {
       const kw = document.getElementById('stockSearchInput').value.trim();
       const tbody = document.getElementById('stockTableBody');
@@ -2133,8 +2212,8 @@
 
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td><b>${p.id}</b></td>
-            <td><b>${p.name}</b></td>
+            <td><span class="clickable-part" onclick="openPartModal('${p.id}')">${p.id}</span></td>
+            <td><span class="clickable-part" onclick="openPartModal('${p.id}')">${p.name}</span></td>
             ${formatCell(p.stock_osaka)}
             ${formatCell(p.stock_hirata)}
             ${formatCell(p.stock_yamamoto)}
@@ -2152,6 +2231,66 @@
         alertPanel.style.display = 'block';
       } else {
         alertPanel.style.display = 'none';
+      }
+    }
+
+    function openPartModal(partId) {
+      const part = globalPartsData.find(p => p.id === partId);
+      if (!part) return;
+      currentModalPartId = partId;
+
+      document.getElementById('partModalTitle').innerText = `${part.id} ${part.name}`;
+      
+      const total = part.stock_osaka + part.stock_hirata + part.stock_yamamoto + part.stock_mukai + part.stock_isaka + part.stock_kawahara + part.stock_matsui;
+      
+      const tilesContainer = document.getElementById('partModalTiles');
+      tilesContainer.innerHTML = `
+        <div style="background:#f8f9fa; border:1px solid #ccc; border-radius:6px; padding:8px; text-align:center;"><div style="font-size:0.75rem; color:#666;">大阪事務所</div><b style="font-size:1rem;">${part.stock_osaka}</b></div>
+        <div style="background:#f8f9fa; border:1px solid #ccc; border-radius:6px; padding:8px; text-align:center;"><div style="font-size:0.75rem; color:#666;">平田</div><b style="font-size:1rem;">${part.stock_hirata}</b></div>
+        <div style="background:#f8f9fa; border:1px solid #ccc; border-radius:6px; padding:8px; text-align:center;"><div style="font-size:0.75rem; color:#666;">山本</div><b style="font-size:1rem;">${part.stock_yamamoto}</b></div>
+        <div style="background:#f8f9fa; border:1px solid #ccc; border-radius:6px; padding:8px; text-align:center;"><div style="font-size:0.75rem; color:#666;">向井</div><b style="font-size:1rem;">${part.stock_mukai}</b></div>
+        <div style="background:#f8f9fa; border:1px solid #ccc; border-radius:6px; padding:8px; text-align:center;"><div style="font-size:0.75rem; color:#666;">井阪</div><b style="font-size:1rem;">${part.stock_isaka}</b></div>
+        <div style="background:#f8f9fa; border:1px solid #ccc; border-radius:6px; padding:8px; text-align:center;"><div style="font-size:0.75rem; color:#666;">河原</div><b style="font-size:1rem;">${part.stock_kawahara}</b></div>
+        <div style="background:#f8f9fa; border:1px solid #ccc; border-radius:6px; padding:8px; text-align:center;"><div style="font-size:0.75rem; color:#666;">松井色素</div><b style="font-size:1rem;">${part.stock_matsui}</b></div>
+        <div style="background:#e8f4f8; border:1px solid #b8daff; border-radius:6px; padding:8px; text-align:center; grid-column: span 2;"><div style="font-size:0.75rem; color:#004085;">全合計</div><b style="font-size:1rem; color:#004085;">${total}</b></div>
+      `;
+
+      document.getElementById('modalMoveQty').value = 1;
+      document.getElementById('partModal').style.display = 'flex';
+    }
+
+    function closePartModal() {
+      document.getElementById('partModal').style.display = 'none';
+      currentModalPartId = null;
+    }
+
+    function switchPartModalTab(tabName) {}
+
+    async function executeStockMoveFromModal() {
+      if (!currentModalPartId) return;
+      const sourceUser = document.getElementById('modalSourceUser').value;
+      const destUser = document.getElementById('modalDestUser').value;
+      const qty = Number(document.getElementById('modalMoveQty').value);
+
+      if (sourceUser === destUser) {
+        alert("⚠️ 移動元と移動先に同じ場所が選択されています。");
+        return;
+      }
+      if (!qty || qty <= 0) {
+        alert("⚠️ 有効な数量を入力してください。");
+        return;
+      }
+
+      showLoading("在庫を移動中...");
+      try {
+        await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(currentModalPartId)}&user=${encodeURIComponent(sourceUser)}&qtyDelta=-${qty}`);
+        await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(currentModalPartId)}&user=${encodeURIComponent(destUser)}&qtyDelta=${qty}`);
+
+        alert(`✅ ${currentModalPartId} を ${sourceUser} から ${destUser} へ ${qty}個 移動しました！`);
+        closePartModal();
+        await fetchAllDataFromGAS();
+      } finally {
+        hideLoading();
       }
     }
 
