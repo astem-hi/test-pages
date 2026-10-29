@@ -265,7 +265,7 @@
   <div id="tab-map" class="tab-content active">
     <div class="map-container">
       <div class="map-left panel">
-        <div class="section-title"><span>部品検索・棚マップ</span></div>
+        <div class="section-title"><span>部品検索・棚マップ <span style="font-size:0.75rem; color:#007bff; font-weight:normal;">(💡 右側一覧の部品名をタップすると在庫管理・移動ポップアップが開きます)</span></span></div>
         <input type="text" id="mapSearchInput" placeholder="🔍 品番・品名・棚番号を曖昧検索..." oninput="handleMapSearch()">
         
         <div class="shelf-group">
@@ -518,10 +518,8 @@
 
       <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:12px;" id="partModalTiles"></div>
 
-      <div style="display:flex; gap:4px; background:#e9ecef; padding:4px; border-radius:8px; margin-bottom:12px;">
-        <button class="btn btn-sm" style="flex:1; background:var(--accent-color); color:#fff;" id="tabMove" onclick="switchPartModalTab('move')">⇄ 移動</button>
-        <button class="btn btn-sm btn-secondary" style="flex:1;" onclick="alert('※使用は作業報告タブの「使用部品」から行ってください。')">－ 使用</button>
-        <button class="btn btn-sm btn-secondary" style="flex:1;" onclick="alert('※入荷は倉庫移動タブの未処理リストから行ってください。')">＋ 入荷</button>
+      <div style="background:#e9ecef; padding:6px 10px; border-radius:6px; margin-bottom:10px; font-size:0.85rem; font-weight:bold; color:var(--accent-color); text-align:center;">
+        ⇄ 在庫の拠点間・個人間移動
       </div>
 
       <div id="partModalMoveSection">
@@ -567,6 +565,35 @@
       <div style="display:flex; gap:8px;">
         <button class="btn btn-danger" onclick="confirmMinusAndProceed()">マイナス在庫で強行する</button>
         <button class="btn btn-secondary" onclick="closeMinusConfirmModal()">戻って修正する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 初期不良の客先在庫補填確認モーダル -->
+  <div id="defectReplenishModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1200; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:420px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+      <div class="section-title" style="color:#f0ad4e;"><span>⚠️ 初期不良：客先在庫からの使用</span></div>
+      <p style="font-size:0.85rem; color:#333; margin-bottom:12px;">初期不良において「客先在庫(購入済)」が選択されています。誰かの個人・拠点在庫から数量を補填（減算）しますか？</p>
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <button class="btn btn-success" style="flex:1;" onclick="onDefectReplenishYes()">はい（在庫から減算する）</button>
+        <button class="btn btn-secondary" style="flex:1;" onclick="onDefectReplenishNo()">いいえ（補填しない）</button>
+      </div>
+      <div id="defectReplenishSubForm" style="display:none; border-top:1px solid var(--border-color); padding-top:8px;">
+        <label>補填元の在庫選択</label>
+        <select id="defectReplenishUser">
+          <option value="大阪事務所">大阪事務所</option>
+          <optgroup label="個人在庫">
+            <option value="平田">平田</option>
+            <option value="山本">山本</option>
+            <option value="向井">向井</option>
+            <option value="井阪">井阪</option>
+            <option value="河原">河原</option>
+            <option value="松井色素">松井色素</option>
+          </optgroup>
+        </select>
+        <label>補填数（減算数）</label>
+        <input type="number" id="defectReplenishQty" min="1" value="1">
+        <button class="btn btn-success" style="margin-top:6px;" onclick="confirmDefectReplenishAndProceed()">確定して処理を進める</button>
       </div>
     </div>
   </div>
@@ -932,10 +959,12 @@
       items.forEach(item => {
         const div = document.createElement('div');
         div.style.cssText = "padding:6px; border-bottom:1px solid #eee; cursor:pointer;";
-        div.innerHTML = `<b>${item.id} ${item.name}</b> <span style="font-size:0.75rem; color:#007bff;">(大阪:${item.stock_osaka} 平:${item.stock_hirata} 山:${item.stock_yamamoto} 向:${item.stock_mukai} 井:${item.stock_isaka} 河:${item.stock_kawahara} 松:${item.stock_matsui})</span><br><span style="font-size:0.8rem; color:#666;">棚: ${item.location}</span>`;
-        div.onclick = () => {
-          document.getElementById('mapSearchInput').value = item.location;
-          handleMapSearch();
+        div.innerHTML = `<b><span class="clickable-part" onclick="openPartModal('${item.id}')">${item.id} ${item.name}</span></b> <span style="font-size:0.75rem; color:#007bff;">(大阪:${item.stock_osaka} 平:${item.stock_hirata} 山:${item.stock_yamamoto} 向:${item.stock_mukai} 井:${item.stock_isaka} 河:${item.stock_kawahara} 松:${item.stock_matsui})</span><br><span style="font-size:0.8rem; color:#666;">棚: ${item.location}</span>`;
+        div.onclick = (e) => {
+          if (e.target.tagName !== 'SPAN' || !e.target.classList.contains('clickable-part')) {
+            document.getElementById('mapSearchInput').value = item.location;
+            handleMapSearch();
+          }
         };
         container.appendChild(div);
       });
@@ -1551,6 +1580,7 @@
       if (machineSecs.length > 0) {
         const partsContainer = machineSecs[0].querySelector('.rep-parts-container');
         partsContainer.innerHTML = '';
+        const reporter = document.getElementById('repReporter').value;
         itemsParsed.forEach(item => {
           const row = document.createElement('div');
           row.className = 'dynamic-row';
@@ -1566,9 +1596,9 @@
             </select>
             <select style="flex:1;" class="rep-part-source">
               <option value="大阪事務所">大阪事務所</option>
-              <option value="TEMP__PURCHASED" selected>客先在庫(購入済)</option>
+              <option value="TEMP__PURCHASED">客先在庫(購入済)</option>
               <optgroup label="個人在庫">
-                ${ALL_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('')}
+                ${ALL_MEMBERS.map(m => `<option value="${m}" ${m===reporter?'selected':''}>${m}</option>`).join('')}
               </optgroup>
             </select>
             <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
@@ -1702,11 +1732,10 @@
       generateReportText();
     }
 
-    // 1. 客先在庫(購入済)を固定選択肢として組み込み
     function refreshReportSourceSelects() {
       const reporter = document.getElementById('repReporter').value;
 
-      document.querySelectorAll('.rep-part-source, .rep-defect-source').forEach(sel => {
+      document.querySelectorAll('.rep-part-source').forEach(sel => {
         const currentVal = sel.value;
         sel.innerHTML = `
           <option value="大阪事務所">大阪事務所</option>
@@ -1715,7 +1744,27 @@
             ${ALL_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('')}
           </optgroup>
         `;
-        sel.value = currentVal || reporter;
+        if (currentVal) {
+          sel.value = currentVal;
+        } else {
+          sel.value = reporter;
+        }
+      });
+
+      document.querySelectorAll('.rep-defect-source').forEach(sel => {
+        const currentVal = sel.value;
+        sel.innerHTML = `
+          <option value="大阪事務所">大阪事務所</option>
+          <option value="TEMP__PURCHASED">客先在庫(購入済)</option>
+          <optgroup label="個人在庫">
+            ${ALL_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('')}
+          </optgroup>
+        `;
+        if (currentVal) {
+          sel.value = currentVal;
+        } else {
+          sel.value = reporter;
+        }
       });
     }
 
@@ -1760,6 +1809,7 @@
         <input type="text" class="rep-m-remarks" placeholder="特記事項があれば" oninput="generateReportText(); saveDraft('report');">
       `;
       container.appendChild(div);
+      addReportPartRow(div.querySelector('.rep-parts-container').nextElementSibling);
       generateReportText();
     }
 
@@ -1780,14 +1830,15 @@
         </select>
         <select style="flex:1;" class="rep-part-source" title="持出元">
           <option value="大阪事務所">大阪事務所</option>
-          <option value="TEMP__PURCHASED" selected>客先在庫(購入済)</option>
+          <option value="TEMP__PURCHASED">客先在庫(購入済)</option>
           <optgroup label="個人在庫">
-            ${ALL_MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('')}
+            ${ALL_MEMBERS.map(m => `<option value="${m}" ${m===reporter?'selected':''}>${m}</option>`).join('')}
           </optgroup>
         </select>
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
       `;
       container.appendChild(row);
+      row.querySelector('.rep-part-source').value = reporter;
       populateReportDropdown(row.querySelector('.part-dropdown-list'), '');
       generateReportText();
     }
@@ -1806,8 +1857,9 @@
         <select style="flex:1;" class="rep-defect-qty">
           ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${n===1?'selected':''}>${n}</option>`).join('')}
         </select>
-        <select style="flex:1;" class="rep-defect-source" title="減算元">
+        <select style="flex:1;" class="rep-defect-source" title="持出元">
           <option value="大阪事務所">大阪事務所</option>
+          <option value="TEMP__PURCHASED">客先在庫(購入済)</option>
           <optgroup label="個人在庫">
             ${ALL_MEMBERS.map(m => `<option value="${m}" ${m===reporter?'selected':''}>${m}</option>`).join('')}
           </optgroup>
@@ -1815,6 +1867,7 @@
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove();">削除</button>
       `;
       container.appendChild(row);
+      row.querySelector('.rep-defect-source').value = reporter;
       populateReportDropdown(row.querySelector('.part-dropdown-list'), '');
     }
 
@@ -1865,7 +1918,6 @@
       });
     }
 
-    // 1. 客先在庫(購入済)選択時のLINE表記: `・部品名 × 数量(お客様在庫より使用)`
     function generateReportText() {
       const date = document.getElementById('repDate').value;
 
@@ -1936,7 +1988,7 @@
       let usageByUserPart = {};
 
       usedPartsList.forEach(item => {
-        if (item.source === 'TEMP__PURCHASED') return; // 客先在庫(購入済)は減算なしなのでスキップ
+        if (item.source === 'TEMP__PURCHASED') return;
 
         let partId = item.name.split(' ')[0];
         const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.name);
@@ -1976,8 +2028,10 @@
       return shortageList;
     }
 
+    // 初期不良で客先在庫から使った場合の補填チェック管理
+    let pendingDefectReplenishQueue = [];
+
     async function copyReportText() {
-      const date = document.getElementById('repDate').value;
       const reporter = document.getElementById('repReporter').value;
       let companions = [];
       document.querySelectorAll('#repCompanions input:checked').forEach(el => companions.push(el.value));
@@ -1986,6 +2040,7 @@
 
       let usedPartsList = [];
       let reportDetailsObj = [];
+      let defectPartsWithTempPurchased = [];
 
       document.querySelectorAll('.machine-section').forEach(sec => {
         const type = sec.querySelector('.rep-m-type').value;
@@ -2020,7 +2075,11 @@
           const dSource = dSourceSel ? dSourceSel.value : reporter;
 
           if (dName && dQty > 0) {
-            usedPartsList.push({ name: dName, qty: dQty, source: dSource, isDefect: true });
+            if (dSource === 'TEMP__PURCHASED') {
+              defectPartsWithTempPurchased.push({ name: dName, qty: dQty });
+            } else {
+              usedPartsList.push({ name: dName, qty: dQty, source: dSource, isDefect: true });
+            }
           }
         });
 
@@ -2033,6 +2092,19 @@
           parts: secParts
         });
       });
+
+      // 初期不良で客先在庫が選ばれていた場合の補填確認
+      if (defectPartsWithTempPurchased.length > 0) {
+        pendingDefectReplenishQueue = [...defectPartsWithTempPurchased];
+        pendingReportSaveData = {
+          usedPartsList,
+          reportLogParamsData: {
+            reporter, companions, customer, reportDetailsObj, overallRemarks
+          }
+        };
+        showNextDefectReplenishModal();
+        return;
+      }
 
       const shortages = checkStockShortage(usedPartsList);
       if (shortages.length > 0) {
@@ -2053,6 +2125,59 @@
       }
 
       await executeReportSave(usedPartsList, { reporter, companions, customer, reportDetailsObj, overallRemarks });
+    }
+
+    function showNextDefectReplenishModal() {
+      if (pendingDefectReplenishQueue.length === 0) {
+        document.getElementById('defectReplenishModal').style.display = 'none';
+        // 次のステップへ
+        if (pendingReportSaveData) {
+          const shortages = checkStockShortage(pendingReportSaveData.usedPartsList);
+          if (shortages.length > 0) {
+            const listContainer = document.getElementById('minusConfirmList');
+            listContainer.innerHTML = shortages.map(s => 
+              `<div><b>【${s.user}】 ${s.partName}</b><br>現在庫: ${s.currentStock} / 使用量: ${s.usedQty} → <span style="color:red; font-weight:bold;">処理後: ${s.afterStock}</span></div>`
+            ).join('<hr style="margin:4px 0; border:0; border-top:1px dashed #ccc;">');
+            document.getElementById('minusConfirmModal').style.display = 'flex';
+            return;
+          }
+          executeReportSave(pendingReportSaveData.usedPartsList, pendingReportSaveData.reportLogParamsData);
+        }
+        return;
+      }
+
+      const current = pendingDefectReplenishQueue[0];
+      const modal = document.getElementById('defectReplenishModal');
+      document.getElementById('defectReplenishSubForm').style.display = 'none';
+      document.getElementById('defectReplenishQty').value = current.qty;
+      modal.style.display = 'flex';
+    }
+
+    function onDefectReplenishYes() {
+      document.getElementById('defectReplenishSubForm').style.display = 'block';
+    }
+
+    function onDefectReplenishNo() {
+      pendingDefectReplenishQueue.shift();
+      showNextDefectReplenishModal();
+    }
+
+    async function confirmDefectReplenishAndProceed() {
+      const current = pendingDefectReplenishQueue[0];
+      const targetUser = document.getElementById('defectReplenishUser').value;
+      const qty = Number(document.getElementById('defectReplenishQty').value);
+
+      if (qty > 0 && pendingReportSaveData) {
+        pendingReportSaveData.usedPartsList.push({
+          name: current.name,
+          qty: qty,
+          source: targetUser,
+          isDefect: true
+        });
+      }
+
+      pendingDefectReplenishQueue.shift();
+      showNextDefectReplenishModal();
     }
 
     function closeMinusConfirmModal() {
@@ -2263,8 +2388,6 @@
       document.getElementById('partModal').style.display = 'none';
       currentModalPartId = null;
     }
-
-    function switchPartModalTab(tabName) {}
 
     async function executeStockMoveFromModal() {
       if (!currentModalPartId) return;
