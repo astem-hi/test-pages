@@ -30,13 +30,9 @@
       margin: 4px 0 12px 0;
     }
     
-    /* PC表示時に画面幅一杯になりすぎず見やすくするための外枠ラッパー */
     .tab-content { display: none; max-width: 800px; margin: 0 auto; }
     .tab-content.active { display: block; }
-
-    /* 棚マップタブのみ左右2カラムのため少し広めのmax-width */
     #tab-map { max-width: 1100px; }
-    /* 個人在庫・棚卸タブも広め */
     #tab-stock { max-width: 1100px; }
 
     .tab-nav {
@@ -201,8 +197,6 @@
     th, td { border: 1px solid var(--border-color); padding: 6px; text-align: left; }
     th { background: #f1f3f5; }
     .minus-stock { color: #ff3b30; font-weight: bold; background-color: #ffe6e6; }
-    .diff-plus { color: #28a745; font-weight: bold; }
-    .diff-minus { color: #ff3b30; font-weight: bold; }
     .clickable-part { color: var(--accent-color); text-decoration: underline; cursor: pointer; font-weight: bold; }
     
     .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; width: 100%; min-width: 0; }
@@ -271,7 +265,7 @@
     <button class="tab-btn active" id="btn-map" onclick="switchTab('map')">📍 棚マップ</button>
     <button class="tab-btn" id="btn-move" onclick="switchTab('move')">🚚 倉庫移動</button>
     <button class="tab-btn" id="btn-report" onclick="switchTab('report')">📝 作業報告</button>
-    <button class="tab-btn" id="btn-stock" onclick="switchTab('stock')">👤 個人在庫・棚卸</button>
+    <button class="tab-btn" id="btn-stock" onclick="switchTab('stock')">👤 個人在庫</button>
   </div>
 
   <!-- タブ1: 棚マップ -->
@@ -465,45 +459,28 @@
     </div>
   </div>
 
-  <!-- タブ4: 個人在庫・棚卸 -->
+  <!-- タブ4: 個人在庫 -->
   <div id="tab-stock" class="tab-content">
     <div id="minusStockAlertPanel" style="display:none; background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; padding:10px; border-radius:8px; margin-bottom:12px; font-weight:bold;">
       ⚠️ マイナス在庫が発生している部品があります。在庫数を確認の上、必要に応じて差異修正を行ってください。
     </div>
 
-    <!-- 個人在庫棚卸セクション（倉庫移動タブ風UIの流用） -->
-    <div class="panel" style="background:#eef4fd; border:1px solid #b8daff;">
-      <div class="section-title" style="color:#004085;">
-        <span>📋 個人在庫 棚卸・ズレ確認モード</span>
-        <button class="btn btn-secondary btn-sm" onclick="resetInventorySession()">🔄 入力クリア</button>
-      </div>
-      <p style="font-size:0.82rem; color:#555; margin-bottom:8px;">
-        棚卸対象のメンバーと拠点を選び、実際のカウント数（実在庫数）を入力してシステム上の数値を一括で確認・差異一括反映できます。
+    <!-- 月1回の棚卸ボタン配置パネル -->
+    <div class="panel" style="background:#eef4fd; border:1px solid #b8daff; text-align:center; padding:16px;">
+      <div style="font-weight:bold; font-size:1rem; color:#004085; margin-bottom:6px;">📋 月1回 棚卸・個人在庫報告</div>
+      <p style="font-size:0.82rem; color:#555; margin-bottom:10px;">
+        現在の正しい実在庫数を1品番ずつ入力して報告します（未出力の報告はCSV出力するまで本人による修正が可能です）。
       </p>
-      
-      <div class="grid-2col">
-        <div>
-          <label>棚卸対象（メンバー・拠点）</label>
-          <select id="invTargetUser" onchange="renderInventoryRows()">
-            <option value="大阪事務所" selected>大阪事務所</option>
-            <option value="平田">平田</option>
-            <option value="山本">山本</option>
-            <option value="向井">向井</option>
-            <option value="井阪">井阪</option>
-            <option value="河原">河原</option>
-            <option value="松井色素">松井色素</option>
-          </select>
-        </div>
-        <div>
-          <label>部品検索（絞り込み）</label>
-          <input type="text" id="invSearchKw" placeholder="🔍 品番・品名で絞り込み..." oninput="renderInventoryRows()">
-        </div>
-      </div>
+      <button class="btn btn-success" style="max-width:300px; margin:0 auto; font-size:1rem;" onclick="openInventoryModal()">＋ 個人在庫の棚卸・在庫報告をする</button>
+    </div>
 
-      <div style="max-height: 350px; overflow-y: auto; background:#fff; border:1px solid var(--border-color); border-radius:6px; padding:6px; margin-bottom:8px;" id="inventoryRowsContainer">
-        <!-- 動的生成 -->
+    <!-- 未出力の棚卸報告リスト（個人ごとの修正・管理者用CSV出力用） -->
+    <div class="panel" id="inventoryReportsPanel" style="display:none; background:#fffbf0; border:1px solid #ffeeba;">
+      <div class="section-title" style="color:#856404;">
+        <span>📦 未出力の個人在庫棚卸報告一覧</span>
+        <button class="btn btn-success btn-sm" onclick="downloadInventoryReportsCSV()">📥 未出力レポートをまとめてCSV出力</button>
       </div>
-      <button class="btn btn-success" onclick="executeInventoryBatchUpdate()">✅ 入力された実在庫数をシステムに一括反映・差異修正</button>
+      <div id="inventoryReportsList" style="max-height: 250px; overflow-y: auto;"></div>
     </div>
 
     <div class="panel" id="tempCustomerStockPanel" style="display:none; background:#e8f4f8; border:1px solid #b8daff;">
@@ -516,7 +493,7 @@
         <span>👤 個人・拠点別在庫一覧 <span style="font-size:0.75rem; color:#007bff; font-weight:normal;">(💡 部品名・品番をタップすると移動ポップアップが開きます)</span></span>
         <div style="display:flex; gap:6px;">
           <button class="btn btn-danger btn-sm" onclick="openDiffModal()">⚠️ 個別差異修正</button>
-          <button class="btn btn-secondary btn-sm" onclick="downloadInventoryCSV()">📥 棚卸CSVダウンロード</button>
+          <button class="btn btn-secondary btn-sm" onclick="downloadInventoryCSV()">📥 現在庫CSVダウンロード</button>
         </div>
       </div>
       <input type="text" id="stockSearchInput" placeholder="🔍 品番または品名で在庫を絞り込み..." oninput="renderStockTable()">
@@ -552,6 +529,46 @@
       <div class="section-title"><span>📋 差異修正履歴ログ</span></div>
       <div id="diffLogContainer" style="max-height: 200px; overflow-y: auto; font-size: 0.85rem; color: #555;">
         まだ修正履歴はありません。
+      </div>
+    </div>
+  </div>
+
+  <!-- 個人在庫棚卸・報告モーダル -->
+  <div id="inventoryModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1300; align-items:center; justify-content:center;">
+    <div style="background:#fff; padding:16px; border-radius:12px; width:94%; max-width:540px; box-shadow:0 6px 18px rgba(0,0,0,0.25); max-height:90vh; display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-color); padding-bottom:6px; margin-bottom:10px;">
+        <b id="invModalTitle" style="font-size:1rem; color:#004085;">📋 個人在庫棚卸・在庫報告</b>
+        <button class="btn btn-secondary btn-sm" onclick="closeInventoryModal()">✕ 閉じる</button>
+      </div>
+
+      <div style="overflow-y:auto; flex:1; padding-right:4px;">
+        <input type="hidden" id="invReportEditId" value="">
+        
+        <label>報告者（メンバー・拠点） <span style="color:red;">*必須</span></label>
+        <select id="invModalReporter">
+          <option value="" disabled selected>選択してください</option>
+          <option value="大阪事務所">大阪事務所</option>
+          <optgroup label="個人在庫">
+            <option value="平田">平田</option>
+            <option value="山本">山本</option>
+            <option value="向井">向井</option>
+            <option value="井阪">井阪</option>
+            <option value="河原">河原</option>
+            <option value="松井色素">松井色素</option>
+          </optgroup>
+        </select>
+
+        <label style="margin-top:8px;">実在庫リスト（今の正しい在庫を1品番ずつ入力）</label>
+        <div id="invModalItemsContainer"></div>
+        <button class="btn btn-secondary btn-sm" onclick="addInventoryModalRow()" style="margin-bottom:12px;">＋ 品番行を追加</button>
+
+        <label>備考・特記事項</label>
+        <textarea id="invModalRemarks" placeholder="特記事項があれば入力してください" rows="2"></textarea>
+      </div>
+
+      <div style="border-top:1px solid var(--border-color); padding-top:10px; margin-top:6px; display:flex; gap:8px;">
+        <button class="btn btn-success" style="flex:2;" onclick="submitInventoryReport()">📤 棚卸レポートを報告する</button>
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeInventoryModal()">キャンセル</button>
       </div>
     </div>
   </div>
@@ -739,6 +756,7 @@
     let globalPartsData = [];
     let diffLogs = [];
     let pendingMoves = [];
+    let inventoryReports = []; // 未出力の個人棚卸報告リスト
     let currentUnusedData = null;
     let currentDistributeMove = null;
     let pendingReportSaveData = null;
@@ -769,7 +787,7 @@
         renderUnprocessedLists();
         renderTempCustomerStock();
         renderDiffLogs();
-        renderInventoryRows();
+        renderInventoryReportsList();
       }
       if (tabId === 'report') {
         renderUnprocessedLists();
@@ -806,6 +824,12 @@
       const savedTab = localStorage.getItem('active_tab') || 'map';
       switchTab(savedTab);
 
+      // ローカルストレージから未出力の棚卸報告を読み込み
+      const savedReports = localStorage.getItem('inventory_reports');
+      if (savedReports) {
+        try { inventoryReports = JSON.parse(savedReports); } catch(e){}
+      }
+
       await fetchAllDataFromGAS();
       loadDraft('move');
       loadDraft('report');
@@ -826,7 +850,7 @@
           renderUnprocessedLists();
           renderTempCustomerStock();
           renderDiffLogs();
-          renderInventoryRows();
+          renderInventoryReportsList();
         }
       } catch (err) {
         console.error("データ同期失敗:", err);
@@ -1020,144 +1044,198 @@
       });
     }
 
-    // ================= 個人在庫棚卸セクションのロジック =================
-    function renderInventoryRows() {
-      const container = document.getElementById('inventoryRowsContainer');
-      const targetUser = document.getElementById('invTargetUser').value;
-      const kw = document.getElementById('invSearchKw').value.trim();
-
-      if (globalPartsData.length === 0) {
-        container.innerHTML = '<div style="padding:10px; text-align:center; color:#888;">データを読み込み中...</div>';
-        return;
-      }
-
-      const filtered = globalPartsData.filter(p => !kw || isMatched(p.id, kw) || isMatched(p.name, kw));
+    // ================= 個人在庫・棚卸報告モーダル関連 =================
+    function openInventoryModal(reportId = null) {
+      document.getElementById('invReportEditId').value = '';
+      document.getElementById('invModalReporter').value = '';
+      document.getElementById('invModalRemarks').value = '';
+      const container = document.getElementById('invModalItemsContainer');
       container.innerHTML = '';
 
-      if (filtered.length === 0) {
-        container.innerHTML = '<div style="padding:10px; text-align:center; color:#888;">該当する部品がありません</div>';
-        return;
+      if (reportId) {
+        const r = inventoryReports.find(item => item.id === reportId);
+        if (r) {
+          document.getElementById('invReportEditId').value = r.id;
+          document.getElementById('invModalReporter').value = r.reporter;
+          document.getElementById('invModalRemarks').value = r.remarks || '';
+          r.items.forEach(it => {
+            addInventoryModalRow(it.part, it.qty);
+          });
+        }
+      } else {
+        addInventoryModalRow();
       }
+
+      document.getElementById('inventoryModal').style.display = 'flex';
+    }
+
+    function closeInventoryModal() {
+      document.getElementById('inventoryModal').style.display = 'none';
+    }
+
+    function addInventoryModalRow(presetPart = '', presetQty = '') {
+      const container = document.getElementById('invModalItemsContainer');
+      const row = document.createElement('div');
+      row.className = 'dynamic-row';
+
+      row.innerHTML = `
+        <div class="part-search-container" style="flex:2;">
+          <input type="text" class="inv-part-search" value="${presetPart}" placeholder="🔍 品番・品名で検索..." oninput="filterInvDropdown(this)" onfocus="showInvDropdown(this)">
+          <div class="part-dropdown-list"></div>
+        </div>
+        <input type="number" min="0" value="${presetQty !== '' ? presetQty : 1}" class="inv-part-qty" placeholder="実在庫数" style="flex:1; margin:0;">
+        <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">削除</button>
+      `;
+      container.appendChild(row);
+      populateInvDropdown(row.querySelector('.part-dropdown-list'), '');
+    }
+
+    function showInvDropdown(input) {
+      input.nextElementSibling.style.display = 'block';
+    }
+
+    function filterInvDropdown(input) {
+      const kw = input.value.trim();
+      const list = input.nextElementSibling;
+      list.style.display = 'block';
+      populateInvDropdown(list, kw);
+    }
+
+    function populateInvDropdown(listEl, keyword) {
+      listEl.innerHTML = '';
+      const filtered = globalPartsData.filter(p => 
+        !keyword || isMatched(p.id, keyword) || isMatched(p.name, keyword)
+      );
 
       filtered.forEach(p => {
-        let currentSysStock = 0;
-        if (targetUser === '大阪事務所') currentSysStock = p.stock_osaka;
-        else if (targetUser === '平田') currentSysStock = p.stock_hirata;
-        else if (targetUser === '山本') currentSysStock = p.stock_yamamoto;
-        else if (targetUser === '向井') currentSysStock = p.stock_mukai;
-        else if (targetUser === '井阪') currentSysStock = p.stock_isaka;
-        else if (targetUser === '河原') currentSysStock = p.stock_kawahara;
-        else if (targetUser === '松井色素') currentSysStock = p.stock_matsui;
+        const item = document.createElement('div');
+        item.className = 'part-dropdown-item';
+        item.innerHTML = `<b>${p.id} ${p.name}</b>`;
+        item.onclick = () => {
+          const input = listEl.previousElementSibling;
+          input.value = `${p.id} ${p.name}`;
+          listEl.style.display = 'none';
+        };
+        listEl.appendChild(item);
+      });
+    }
 
-        const row = document.createElement('div');
-        row.className = 'dynamic-row';
-        row.style.cssText = "align-items:center; border-bottom:1px solid #eee; padding-bottom:6px; margin-bottom:6px;";
-        row.innerHTML = `
-          <div style="flex:3; font-size:0.85rem;">
-            <b>${p.id}</b> ${p.name}<br>
-            <span style="color:#666; font-size:0.75rem;">システム在庫: <b id="sys-stock-${p.id}">${currentSysStock}</b></span>
-          </div>
-          <div style="flex:1;">
-            <label style="font-size:0.7rem; margin:0;">実在庫(カウント)</label>
-            <input type="number" class="inv-actual-qty" data-partid="${p.id}" value="${currentSysStock}" style="padding:6px; margin:0; font-size:0.9rem;" oninput="updateInventoryDiffDisplay('${p.id}', ${currentSysStock})">
-          </div>
-          <div style="flex:1; text-align:center; font-size:0.85rem;">
-            <label style="font-size:0.7rem; margin:0;">差異</label>
-            <span id="inv-diff-${p.id}" class="diff-plus">±0</span>
+    function submitInventoryReport() {
+      const reporter = document.getElementById('invModalReporter').value;
+      const editId = document.getElementById('invReportEditId').value;
+      const remarks = document.getElementById('invModalRemarks').value.trim();
+
+      if (!reporter) {
+        alert("⚠️ 報告者（メンバー・拠点）を選択してください。");
+        document.getElementById('invModalReporter').focus();
+        return;
+      }
+
+      let items = [];
+      document.querySelectorAll('#invModalItemsContainer .dynamic-row').forEach(row => {
+        const partName = row.querySelector('.inv-part-search').value.trim();
+        const qty = Number(row.querySelector('.inv-part-qty').value);
+        if (partName) {
+          items.push({ part: partName, qty: qty });
+        }
+      });
+
+      if (items.length === 0) {
+        alert("⚠️ 少なくとも1つ以上の部品と実在庫数を入力してください。");
+        return;
+      }
+
+      const now = new Date();
+      const timeStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+      if (editId) {
+        const idx = inventoryReports.findIndex(r => r.id === editId);
+        if (idx > -1) {
+          inventoryReports[idx] = {
+            ...inventoryReports[idx],
+            reporter: reporter,
+            items: items,
+            remarks: remarks,
+            time: timeStr
+          };
+        }
+      } else {
+        const newReport = {
+          id: 'INV-' + Date.now(),
+          reporter: reporter,
+          time: timeStr,
+          items: items,
+          remarks: remarks
+        };
+        inventoryReports.push(newReport);
+      }
+
+      localStorage.setItem('inventory_reports', JSON.stringify(inventoryReports));
+      renderInventoryReportsList();
+      closeInventoryModal();
+      alert("✅ 個人在庫の棚卸レポートを報告・保存しました！ (CSV出力するまでいつでも修正できます)");
+    }
+
+    function renderInventoryReportsList() {
+      const panel = document.getElementById('inventoryReportsPanel');
+      const list = document.getElementById('inventoryReportsList');
+
+      if (inventoryReports.length === 0) {
+        panel.style.display = 'none';
+        return;
+      }
+
+      panel.style.display = 'block';
+      list.innerHTML = '';
+
+      inventoryReports.forEach(r => {
+        const div = document.createElement('div');
+        div.className = 'unproc-card';
+        div.style.background = '#fff';
+        div.innerHTML = `
+          <div><b>報告者: ${r.reporter}</b> <span style="font-size:0.75rem; color:#666;">(${r.time})</span></div>
+          <div style="font-size:0.8rem; color:#555; margin:4px 0;">${r.items.map(i => `・${i.part} : <b>${i.qty}個</b>`).join('<br>')}${r.remarks ? `<br>備考: ${r.remarks}` : ''}</div>
+          <div style="display:flex; gap:6px; margin-top:6px;">
+            <button class="btn btn-secondary btn-sm" onclick="openInventoryModal('${r.id}')">✏️ 修正する</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteInventoryReport('${r.id}')">🗑️ 削除</button>
           </div>
         `;
-        container.appendChild(row);
+        list.appendChild(div);
       });
     }
 
-    function updateInventoryDiffDisplay(partId, currentSysStock) {
-      const input = document.querySelector(`.inv-actual-qty[data-partid="${partId}"]`);
-      const diffSpan = document.getElementById(`inv-diff-${partId}`);
-      if (!input || !diffSpan) return;
-
-      const actualVal = Number(input.value);
-      const diff = actualVal - currentSysStock;
-
-      if (diff > 0) {
-        diffSpan.className = 'diff-plus';
-        diffSpan.innerText = `+${diff}`;
-      } else if (diff < 0) {
-        diffSpan.className = 'diff-minus';
-        diffSpan.innerText = `${diff}`;
-      } else {
-        diffSpan.className = '';
-        diffSpan.style.color = '#666';
-        diffSpan.innerText = `±0`;
+    function deleteInventoryReport(reportId) {
+      if (confirm("この棚卸報告を削除してもよろしいですか？")) {
+        inventoryReports = inventoryReports.filter(r => r.id !== reportId);
+        localStorage.setItem('inventory_reports', JSON.stringify(inventoryReports));
+        renderInventoryReportsList();
       }
     }
 
-    function resetInventorySession() {
-      renderInventoryRows();
-    }
+    function downloadInventoryReportsCSV() {
+      if (inventoryReports.length === 0) {
+        alert("⚠️ 出力する未出力の棚卸報告がありません。");
+        return;
+      }
 
-    async function executeInventoryBatchUpdate() {
-      const targetUser = document.getElementById('invTargetUser').value;
-      const inputs = document.querySelectorAll('.inv-actual-qty');
-
-      let updates = [];
-      inputs.forEach(input => {
-        const partId = input.dataset.partid;
-        const actualVal = Number(input.value);
-        
-        let currentSysStock = 0;
-        const p = globalPartsData.find(item => item.id === partId);
-        if (p) {
-          if (targetUser === '大阪事務所') currentSysStock = p.stock_osaka;
-          else if (targetUser === '平田') currentSysStock = p.stock_hirata;
-          else if (targetUser === '山本') currentSysStock = p.stock_yamamoto;
-          else if (targetUser === '向井') currentSysStock = p.stock_mukai;
-          else if (targetUser === '井阪') currentSysStock = p.stock_isaka;
-          else if (targetUser === '河原') currentSysStock = p.stock_kawahara;
-          else if (targetUser === '松井色素') currentSysStock = p.stock_matsui;
-        }
-
-        const delta = actualVal - currentSysStock;
-        if (delta !== 0) {
-          updates.push({ partId: partId, delta: delta });
-        }
+      let csv = "報告ID,報告日時,報告者,品番・品名,実在庫数,備考\n";
+      inventoryReports.forEach(r => {
+        r.items.forEach(i => {
+          csv += `"${r.id}","${r.time}","${r.reporter}","${i.part}",${i.qty},"${r.remarks || ''}"\n`;
+        });
       });
 
-      if (updates.length === 0) {
-        alert("⚠️ システム上の在庫数から変更（差異）のある部品がありません。");
-        return;
-      }
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `personal_inventory_reports_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
 
-      if (!confirm(`【${targetUser}】の棚卸結果に基づき、${updates.length}件の差異を一括反映してログを記録します。よろしいですか？`)) {
-        return;
-      }
-
-      showLoading("棚卸の差異を一括反映中...");
-      try {
-        const now = new Date();
-        const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-
-        for (let u of updates) {
-          await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(u.partId)}&user=${encodeURIComponent(targetUser)}&qtyDelta=${u.delta}`);
-
-          const foundP = globalPartsData.find(item => item.id === u.partId);
-          const partFullName = foundP ? `${foundP.id} ${foundP.name}` : u.partId;
-
-          const logParams = new URLSearchParams({
-            action: 'saveLog',
-            time: timeStr,
-            editor: targetUser + '(棚卸)',
-            targetUser: targetUser,
-            part: partFullName,
-            qtyChange: (u.delta > 0 ? '+' : '') + u.delta,
-            reason: '個人在庫棚卸による一括差異修正'
-          });
-          await fetch(GAS_API_URL + "?" + logParams.toString());
-        }
-
-        alert("✅ 棚卸による在庫数の差異が一括反映されました！");
-        await fetchAllDataFromGAS();
-      } finally {
-        hideLoading();
+      if (confirm("CSVを出力しました。未出力の報告リストをクリア（完了）しますか？")) {
+        inventoryReports = [];
+        localStorage.removeItem('inventory_reports');
+        renderInventoryReportsList();
       }
     }
 
@@ -2492,7 +2570,7 @@
       }
     }
 
-    // ================= 個人在庫・棚卸・差異修正・ポップアップ移動 =================
+    // ================= 個人在庫・差異修正・ポップアップ移動 =================
     function renderStockTable() {
       const kw = document.getElementById('stockSearchInput').value.trim();
       const tbody = document.getElementById('stockTableBody');
