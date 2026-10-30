@@ -197,6 +197,8 @@
     th, td { border: 1px solid var(--border-color); padding: 6px; text-align: left; }
     th { background: #f1f3f5; }
     .minus-stock { color: #ff3b30; font-weight: bold; background-color: #ffe6e6; }
+    .diff-plus { color: #28a745; font-weight: bold; }
+    .diff-minus { color: #ff3b30; font-weight: bold; background-color: #ffe6e6; }
     .clickable-part { color: var(--accent-color); text-decoration: underline; cursor: pointer; font-weight: bold; }
     
     .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; width: 100%; min-width: 0; }
@@ -483,6 +485,22 @@
       <div id="inventoryReportsList" style="max-height: 250px; overflow-y: auto;"></div>
     </div>
 
+    <!-- 奉行Excel読み込み・差異比較・一括エクセル出力パネル -->
+    <div class="panel" style="background:#f1f8ff; border:1px solid #c8e1ff;">
+      <div class="section-title" style="color:#003366;">
+        <span>📊 奉行のエクセルを読み込み・差異比較・一括Excel出力</span>
+      </div>
+      <p style="font-size:0.82rem; color:#555; margin-bottom:8px;">
+        奉行から書き出したExcelファイルをアップロードすると、奉行の在庫と個人在庫・大阪事務所在庫を突き合わせて差異を表示し、<strong>個人在庫・大阪事務所在庫・差異・備考欄を含んだ集計Excel</strong>をそのまま出力できます。
+      </p>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+        <input type="file" id="systemExcelFileInput" accept=".csv, .xlsx, .xls" onchange="loadSystemExcelFile(this)" style="flex:1; margin:0; padding:6px; font-size:0.85rem !important;">
+        <button class="btn btn-success btn-sm" onclick="downloadAggregatedExcel()" style="width:auto;">📥 差異・個人在庫付きの集計Excel出力</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearSystemExcelData()" style="width:auto;">🗑️ クリア</button>
+      </div>
+      <div id="systemExcelStatus" style="font-size:0.82rem; color:#28a745; font-weight:bold; margin-bottom:4px;"></div>
+    </div>
+
     <div class="panel" id="tempCustomerStockPanel" style="display:none; background:#e8f4f8; border:1px solid #b8daff;">
       <div class="section-title" style="color:#004085;"><span>📦 お客様仮在庫 (個人返却・戻し処理)</span></div>
       <div id="tempCustomerStockList" style="max-height: 200px; overflow-y: auto;"></div>
@@ -500,7 +518,7 @@
       <div style="overflow-x: auto; max-height: 400px;">
         <table id="stockTable">
           <thead>
-            <tr>
+            <tr id="stockTableHeaderRow">
               <th>品番</th>
               <th>品名</th>
               <th>大阪</th>
@@ -750,13 +768,18 @@
     </div>
   </div>
 
+  <!-- SheetJS (Excel読み込み・書き出し用) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
   <script>
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0xHS5f9H-iZLLTGobrMp59dF5JUZtL6BcNHwVMIiY9gSMS75d3ZoZzsHcFfGhpP9u/exec";
 
     let globalPartsData = [];
     let diffLogs = [];
     let pendingMoves = [];
-    let inventoryReports = []; // 未出力の個人棚卸報告リスト
+    let inventoryReports = [];
+    let systemExcelRawRows = []; // 奉行Excelの生データ
+    let systemExcelData = {}; // code -> {name, stock, rowObj}
     let currentUnusedData = null;
     let currentDistributeMove = null;
     let pendingReportSaveData = null;
@@ -806,14 +829,6 @@
       }
     });
 
-    document.addEventListener('focusin', function(e) {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
-        setTimeout(() => {
-          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 300);
-      }
-    });
-
     window.addEventListener('DOMContentLoaded', async () => {
       initMapGrid();
       document.getElementById('repDate').valueAsDate = new Date();
@@ -824,10 +839,17 @@
       const savedTab = localStorage.getItem('active_tab') || 'map';
       switchTab(savedTab);
 
-      // ローカルストレージから未出力の棚卸報告を読み込み
       const savedReports = localStorage.getItem('inventory_reports');
       if (savedReports) {
         try { inventoryReports = JSON.parse(savedReports); } catch(e){}
+      }
+
+      const savedSysExcel = localStorage.getItem('system_excel_data');
+      if (savedSysExcel) {
+        try {
+          systemExcelData = JSON.parse(savedSysExcel);
+          document.getElementById('systemExcelStatus').innerText = `✅ 奉行基準データ読み込み済み (${Object.keys(systemExcelData).length}件)`;
+        } catch(e){}
       }
 
       await fetchAllDataFromGAS();
@@ -872,6 +894,139 @@
         stock_kawahara: Number(obj['stock_kawahara'] || obj['河原'] || 0),
         stock_matsui: Number(obj['stock_matsui'] || obj['松井色素'] || obj['松井'] || 0)
       }));
+    }
+
+    // ================= 奉行Excel読み込み・差異比較・出力 =================
+    function loadSystemExcelFile(fileInput) {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          systemExcelRawRows = jsonRows;
+          systemExcelData = {};
+          let parsedCount = 0;
+
+          // 奉行のエクセル形式: [倉庫コード(0), 倉庫名(1), 商品コード(2), 商品名(3), 現品残数(4), 在庫残数(5)]
+          jsonRows.forEach(row => {
+            if (row && row.length >= 6) {
+              const code = String(row[2] || '').trim();
+              const name = String(row[3] || '').trim();
+              const stockVal = Number(row[5]); // 在庫残数
+              if (code && !isNaN(stockVal)) {
+                systemExcelData[code] = {
+                  name: name,
+                  stock: stockVal
+                };
+                parsedCount++;
+              }
+            }
+          });
+
+          localStorage.setItem('system_excel_data', JSON.stringify(systemExcelData));
+          document.getElementById('systemExcelStatus').innerText = `✅ 奉行データ読込成功 (${parsedCount}件)`;
+          renderStockTable();
+          alert(`✅ 奉行のエクセルを正常に読み込みました（${parsedCount}件）。システム在庫と個人在庫の差異が一覧に反映されました！`);
+        } catch (err) {
+          console.error(err);
+          alert("⚠️ エクセルの読み込みに失敗しました。ファイル形式をご確認ください。");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function clearSystemExcelData() {
+      if (confirm("奉行基準データをクリアしてもよろしいですか？")) {
+        systemExcelData = {};
+        systemExcelRawRows = [];
+        localStorage.removeItem('system_excel_data');
+        document.getElementById('systemExcelStatus').innerText = '';
+        document.getElementById('systemExcelFileInput').value = '';
+        renderStockTable();
+        alert("🗑️ 基準データをクリアしました。");
+      }
+    }
+
+    // 奉行形式をベースにした一括Excel出力
+    function downloadAggregatedExcel() {
+      if (Object.keys(systemExcelData).length === 0) {
+        alert("⚠️ 先に奉行から書き出したExcelファイルをアップロードしてください。");
+        return;
+      }
+
+      // 出力用データ作成
+      let outRows = [
+        ["倉庫コード", "倉庫名", "商品コード", "商品名", "現品残数", "奉行在庫残数", "大阪事務所", "平田", "山本", "向井", "井阪", "河原", "松井色素", "合計在庫", "差異(合計-奉行)", "備考"]
+      ];
+
+      // グローバルパーツデータをマップ化 (コード一致または部分一致)
+      let partMap = {};
+      globalPartsData.forEach(p => {
+        partMap[p.id] = p;
+        // もし奉行コードが 7305XXXX でシステム品番が AJ-XXXX のような場合の対応として名前やコードの一部でも紐付け可能に
+      });
+
+      // 奉行の元行をベースに構築
+      systemExcelRawRows.forEach(row => {
+        if (row && row.length >= 6) {
+          const warehouseCode = row[0];
+          const warehouseName = row[1];
+          const code = String(row[2] || '').trim();
+          const name = String(row[3] || '').trim();
+          const genpin = row[4];
+          const bugyoStock = Number(row[5]);
+
+          if (code && !isNaN(bugyoStock)) {
+            // 一致するパーツを探す (ID完全一致 または 部分一致)
+            let matchedPart = globalPartsData.find(p => p.id === code || code.includes(p.id) || p.id.includes(code));
+            
+            const osaka = matchedPart ? matchedPart.stock_osaka : 0;
+            const hirata = matchedPart ? matchedPart.stock_hirata : 0;
+            const yamamoto = matchedPart ? matchedPart.stock_yamamoto : 0;
+            const mukai = matchedPart ? matchedPart.stock_mukai : 0;
+            const isaka = matchedPart ? matchedPart.stock_isaka : 0;
+            const kawahara = matchedPart ? matchedPart.stock_kawahara : 0;
+            const matsui = matchedPart ? matchedPart.stock_matsui : 0;
+            
+            const total = osaka + hirata + yamamoto + mukai + isaka + kawahara + matsui;
+            const diff = total - bugyoStock;
+
+            outRows.push([
+              warehouseCode || "9020",
+              warehouseName || "大阪営業Ｇ",
+              code,
+              name,
+              genpin !== undefined ? genpin : bugyoStock,
+              bugyoStock,
+              osaka,
+              hirata,
+              yamamoto,
+              mukai,
+              isaka,
+              kawahara,
+              matsui,
+              total,
+              diff,
+              "" // 備考欄
+            ]);
+          }
+        }
+      });
+
+      // SheetJSでExcel生成
+      const ws = XLSX.utils.aoa_to_sheet(outRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "在庫差異集計");
+
+      XLSX.writeFile(wb, `Bugyo_Inventory_Diff_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
+      alert("📥 個人在庫・大阪事務所在庫・差異を含んだ集計Excelファイルをダウンロードしました！");
     }
 
     function saveDraft(formName) {
@@ -2574,11 +2729,44 @@
     function renderStockTable() {
       const kw = document.getElementById('stockSearchInput').value.trim();
       const tbody = document.getElementById('stockTableBody');
+      const theadRow = document.getElementById('stockTableHeaderRow');
       const alertPanel = document.getElementById('minusStockAlertPanel');
       tbody.innerHTML = '';
 
+      const hasSystemData = Object.keys(systemExcelData).length > 0;
+      if (hasSystemData) {
+        theadRow.innerHTML = `
+          <th>品番</th>
+          <th>品名</th>
+          <th>大阪</th>
+          <th>平田</th>
+          <th>山本</th>
+          <th>向井</th>
+          <th>井阪</th>
+          <th>河原</th>
+          <th>松井</th>
+          <th>合計</th>
+          <th style="background:#e8f4f8; color:#004085;">奉行在庫</th>
+          <th style="background:#eef4fd; color:#004085;">差異(合計-奉行)</th>
+        `;
+      } else {
+        theadRow.innerHTML = `
+          <th>品番</th>
+          <th>品名</th>
+          <th>大阪</th>
+          <th>平田</th>
+          <th>山本</th>
+          <th>向井</th>
+          <th>井阪</th>
+          <th>河原</th>
+          <th>松井</th>
+          <th>合計</th>
+        `;
+      }
+
       if (globalPartsData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#888;">データが読み込まれていません</td></tr>`;
+        const colSpan = hasSystemData ? 12 : 10;
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; color:#888;">データが読み込まれていません</td></tr>`;
         alertPanel.style.display = 'none';
         return;
       }
@@ -2587,7 +2775,8 @@
 
       const filtered = globalPartsData.filter(p => !kw || isMatched(p.id, kw) || isMatched(p.name, kw));
       if(filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">該当する部品がありません</td></tr>`;
+        const colSpan = hasSystemData ? 12 : 10;
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center;">該当する部品がありません</td></tr>`;
       } else {
         filtered.forEach(p => {
           const stocks = [
@@ -2598,8 +2787,28 @@
           if (hasMinusInRow) hasMinusStockGlobal = true;
 
           const total = stocks.reduce((sum, s) => sum + (Number(s) || 0), 0);
-
           const formatCell = (val) => Number(val) < 0 ? `<td class="minus-stock">${val}</td>` : `<td>${val}</td>`;
+
+          let sysHtml = '';
+          if (hasSystemData) {
+            // 奉行データからコード一致または部分一致で検索
+            let sysObj = systemExcelData[p.id];
+            if (!sysObj) {
+              const foundKey = Object.keys(systemExcelData).find(k => k.includes(p.id) || p.id.includes(k));
+              if (foundKey) sysObj = systemExcelData[foundKey];
+            }
+            const bugyoStock = sysObj ? sysObj.stock : 0;
+            const diff = total - bugyoStock;
+            let diffHtml = '';
+            if (diff > 0) {
+              diffHtml = `<td class="diff-plus">+${diff}</td>`;
+            } else if (diff < 0) {
+              diffHtml = `<td class="diff-minus">${diff}</td>`;
+            } else {
+              diffHtml = `<td style="color:#6c757d;">0 (一致)</td>`;
+            }
+            sysHtml = `<td style="background:#f8f9fa; font-weight:bold;">${bugyoStock}</td>${diffHtml}`;
+          }
 
           const tr = document.createElement('tr');
           tr.innerHTML = `
@@ -2613,6 +2822,7 @@
             ${formatCell(p.stock_kawahara)}
             ${formatCell(p.stock_matsui)}
             <td><b>${total}</b></td>
+            ${sysHtml}
           `;
           tbody.appendChild(tr);
         });
