@@ -467,31 +467,13 @@
       ⚠️ マイナス在庫が発生している部品があります。在庫数を確認の上、必要に応じて差異修正を行ってください。
     </div>
 
-    <!-- 月1回の棚卸ボタン配置パネル -->
-    <div class="panel" style="background:#eef4fd; border:1px solid #b8daff; text-align:center; padding:16px;">
-      <div style="font-weight:bold; font-size:1rem; color:#004085; margin-bottom:6px;">📋 月1回 棚卸・個人在庫報告</div>
-      <p style="font-size:0.82rem; color:#555; margin-bottom:10px;">
-        現在の正しい実在庫数を1品番ずつ入力して報告します（未出力の報告はCSV出力するまで本人による修正が可能です）。
-      </p>
-      <button class="btn btn-success" style="max-width:300px; margin:0 auto; font-size:1rem;" onclick="openInventoryModal()">＋ 個人在庫の棚卸・在庫報告をする</button>
-    </div>
-
-    <!-- 未出力の棚卸報告リスト（個人ごとの修正・管理者用CSV出力用） -->
-    <div class="panel" id="inventoryReportsPanel" style="display:none; background:#fffbf0; border:1px solid #ffeeba;">
-      <div class="section-title" style="color:#856404;">
-        <span>📦 未出力の個人在庫棚卸報告一覧</span>
-        <button class="btn btn-success btn-sm" onclick="downloadInventoryReportsCSV()">📥 未出力レポートをまとめてCSV出力</button>
-      </div>
-      <div id="inventoryReportsList" style="max-height: 250px; overflow-y: auto;"></div>
-    </div>
-
     <!-- 奉行Excel読み込み・差異比較・一括エクセル出力パネル -->
     <div class="panel" style="background:#f1f8ff; border:1px solid #c8e1ff;">
       <div class="section-title" style="color:#003366;">
         <span>📊 奉行のエクセルを読み込み・差異比較・一括Excel出力</span>
       </div>
       <p style="font-size:0.82rem; color:#555; margin-bottom:8px;">
-        奉行から書き出したExcelファイルをアップロードすると、奉行の在庫と個人在庫・大阪事務所在庫を突き合わせて差異を表示し、<strong>個人在庫・大阪事務所在庫・差異・備考欄を含んだ集計Excel</strong>をそのまま出力できます。
+        奉行から書き出したExcelファイルをアップロードすると、奉行の在庫と個人在庫・大阪事務所在庫を突き合わせて右下に反映し、<strong>個人在庫・大阪事務所在庫・差異・備考欄を含んだ集計Excel</strong>をそのまま出力できます。
       </p>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
         <input type="file" id="systemExcelFileInput" accept=".csv, .xlsx, .xls" onchange="loadSystemExcelFile(this)" style="flex:1; margin:0; padding:6px; font-size:0.85rem !important;">
@@ -547,46 +529,6 @@
       <div class="section-title"><span>📋 差異修正履歴ログ</span></div>
       <div id="diffLogContainer" style="max-height: 200px; overflow-y: auto; font-size: 0.85rem; color: #555;">
         まだ修正履歴はありません。
-      </div>
-    </div>
-  </div>
-
-  <!-- 個人在庫棚卸・報告モーダル -->
-  <div id="inventoryModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1300; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:16px; border-radius:12px; width:94%; max-width:540px; box-shadow:0 6px 18px rgba(0,0,0,0.25); max-height:90vh; display:flex; flex-direction:column;">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-color); padding-bottom:6px; margin-bottom:10px;">
-        <b id="invModalTitle" style="font-size:1rem; color:#004085;">📋 個人在庫棚卸・在庫報告</b>
-        <button class="btn btn-secondary btn-sm" onclick="closeInventoryModal()">✕ 閉じる</button>
-      </div>
-
-      <div style="overflow-y:auto; flex:1; padding-right:4px;">
-        <input type="hidden" id="invReportEditId" value="">
-        
-        <label>報告者（メンバー・拠点） <span style="color:red;">*必須</span></label>
-        <select id="invModalReporter">
-          <option value="" disabled selected>選択してください</option>
-          <option value="大阪事務所">大阪事務所</option>
-          <optgroup label="個人在庫">
-            <option value="平田">平田</option>
-            <option value="山本">山本</option>
-            <option value="向井">向井</option>
-            <option value="井阪">井阪</option>
-            <option value="河原">河原</option>
-            <option value="松井色素">松井色素</option>
-          </optgroup>
-        </select>
-
-        <label style="margin-top:8px;">実在庫リスト（今の正しい在庫を1品番ずつ入力）</label>
-        <div id="invModalItemsContainer"></div>
-        <button class="btn btn-secondary btn-sm" onclick="addInventoryModalRow()" style="margin-bottom:12px;">＋ 品番行を追加</button>
-
-        <label>備考・特記事項</label>
-        <textarea id="invModalRemarks" placeholder="特記事項があれば入力してください" rows="2"></textarea>
-      </div>
-
-      <div style="border-top:1px solid var(--border-color); padding-top:10px; margin-top:6px; display:flex; gap:8px;">
-        <button class="btn btn-success" style="flex:2;" onclick="submitInventoryReport()">📤 棚卸レポートを報告する</button>
-        <button class="btn btn-secondary" style="flex:1;" onclick="closeInventoryModal()">キャンセル</button>
       </div>
     </div>
   </div>
@@ -777,9 +719,8 @@
     let globalPartsData = [];
     let diffLogs = [];
     let pendingMoves = [];
-    let inventoryReports = [];
     let systemExcelRawRows = []; // 奉行Excelの生データ
-    let systemExcelData = {}; // code -> {name, stock, rowObj}
+    let systemExcelData = {}; // normalizedKey -> {name, stock, rowObj}
     let currentUnusedData = null;
     let currentDistributeMove = null;
     let pendingReportSaveData = null;
@@ -810,7 +751,6 @@
         renderUnprocessedLists();
         renderTempCustomerStock();
         renderDiffLogs();
-        renderInventoryReportsList();
       }
       if (tabId === 'report') {
         renderUnprocessedLists();
@@ -838,11 +778,6 @@
 
       const savedTab = localStorage.getItem('active_tab') || 'map';
       switchTab(savedTab);
-
-      const savedReports = localStorage.getItem('inventory_reports');
-      if (savedReports) {
-        try { inventoryReports = JSON.parse(savedReports); } catch(e){}
-      }
 
       const savedSysExcel = localStorage.getItem('system_excel_data');
       if (savedSysExcel) {
@@ -872,7 +807,6 @@
           renderUnprocessedLists();
           renderTempCustomerStock();
           renderDiffLogs();
-          renderInventoryReportsList();
         }
       } catch (err) {
         console.error("データ同期失敗:", err);
@@ -921,10 +855,19 @@
               const name = String(row[3] || '').trim();
               const stockVal = Number(row[5]); // 在庫残数
               if (code && !isNaN(stockVal)) {
+                // キーを複数保持してマッチングしやすくする (コードそのまま + 小文字化 + 品名)
                 systemExcelData[code] = {
+                  code: code,
                   name: name,
                   stock: stockVal
                 };
+                if (name) {
+                  systemExcelData[name.toLowerCase()] = {
+                    code: code,
+                    name: name,
+                    stock: stockVal
+                  };
+                }
                 parsedCount++;
               }
             }
@@ -933,7 +876,7 @@
           localStorage.setItem('system_excel_data', JSON.stringify(systemExcelData));
           document.getElementById('systemExcelStatus').innerText = `✅ 奉行データ読込成功 (${parsedCount}件)`;
           renderStockTable();
-          alert(`✅ 奉行のエクセルを正常に読み込みました（${parsedCount}件）。システム在庫と個人在庫の差異が一覧に反映されました！`);
+          alert(`✅ 奉行のエクセルを正常に読み込みました（${parsedCount}件）。右下の「奉行在庫」列に在庫数が反映されました！`);
         } catch (err) {
           console.error(err);
           alert("⚠️ エクセルの読み込みに失敗しました。ファイル形式をご確認ください。");
@@ -961,19 +904,10 @@
         return;
       }
 
-      // 出力用データ作成
       let outRows = [
         ["倉庫コード", "倉庫名", "商品コード", "商品名", "現品残数", "奉行在庫残数", "大阪事務所", "平田", "山本", "向井", "井阪", "河原", "松井色素", "合計在庫", "差異(合計-奉行)", "備考"]
       ];
 
-      // グローバルパーツデータをマップ化 (コード一致または部分一致)
-      let partMap = {};
-      globalPartsData.forEach(p => {
-        partMap[p.id] = p;
-        // もし奉行コードが 7305XXXX でシステム品番が AJ-XXXX のような場合の対応として名前やコードの一部でも紐付け可能に
-      });
-
-      // 奉行の元行をベースに構築
       systemExcelRawRows.forEach(row => {
         if (row && row.length >= 6) {
           const warehouseCode = row[0];
@@ -984,8 +918,11 @@
           const bugyoStock = Number(row[5]);
 
           if (code && !isNaN(bugyoStock)) {
-            // 一致するパーツを探す (ID完全一致 または 部分一致)
-            let matchedPart = globalPartsData.find(p => p.id === code || code.includes(p.id) || p.id.includes(code));
+            // 一致するパーツを探す (ID完全一致、部分一致、または名称一致)
+            let matchedPart = globalPartsData.find(p => 
+              p.id === code || code.includes(p.id) || p.id.includes(code) ||
+              (name && (p.name.includes(name) || name.includes(p.name)))
+            );
             
             const osaka = matchedPart ? matchedPart.stock_osaka : 0;
             const hirata = matchedPart ? matchedPart.stock_hirata : 0;
@@ -1014,13 +951,12 @@
               matsui,
               total,
               diff,
-              "" // 備考欄
+              ""
             ]);
           }
         }
       });
 
-      // SheetJSでExcel生成
       const ws = XLSX.utils.aoa_to_sheet(outRows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "在庫差異集計");
@@ -1197,201 +1133,6 @@
         };
         container.appendChild(div);
       });
-    }
-
-    // ================= 個人在庫・棚卸報告モーダル関連 =================
-    function openInventoryModal(reportId = null) {
-      document.getElementById('invReportEditId').value = '';
-      document.getElementById('invModalReporter').value = '';
-      document.getElementById('invModalRemarks').value = '';
-      const container = document.getElementById('invModalItemsContainer');
-      container.innerHTML = '';
-
-      if (reportId) {
-        const r = inventoryReports.find(item => item.id === reportId);
-        if (r) {
-          document.getElementById('invReportEditId').value = r.id;
-          document.getElementById('invModalReporter').value = r.reporter;
-          document.getElementById('invModalRemarks').value = r.remarks || '';
-          r.items.forEach(it => {
-            addInventoryModalRow(it.part, it.qty);
-          });
-        }
-      } else {
-        addInventoryModalRow();
-      }
-
-      document.getElementById('inventoryModal').style.display = 'flex';
-    }
-
-    function closeInventoryModal() {
-      document.getElementById('inventoryModal').style.display = 'none';
-    }
-
-    function addInventoryModalRow(presetPart = '', presetQty = '') {
-      const container = document.getElementById('invModalItemsContainer');
-      const row = document.createElement('div');
-      row.className = 'dynamic-row';
-
-      row.innerHTML = `
-        <div class="part-search-container" style="flex:2;">
-          <input type="text" class="inv-part-search" value="${presetPart}" placeholder="🔍 品番・品名で検索..." oninput="filterInvDropdown(this)" onfocus="showInvDropdown(this)">
-          <div class="part-dropdown-list"></div>
-        </div>
-        <input type="number" min="0" value="${presetQty !== '' ? presetQty : 1}" class="inv-part-qty" placeholder="実在庫数" style="flex:1; margin:0;">
-        <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">削除</button>
-      `;
-      container.appendChild(row);
-      populateInvDropdown(row.querySelector('.part-dropdown-list'), '');
-    }
-
-    function showInvDropdown(input) {
-      input.nextElementSibling.style.display = 'block';
-    }
-
-    function filterInvDropdown(input) {
-      const kw = input.value.trim();
-      const list = input.nextElementSibling;
-      list.style.display = 'block';
-      populateInvDropdown(list, kw);
-    }
-
-    function populateInvDropdown(listEl, keyword) {
-      listEl.innerHTML = '';
-      const filtered = globalPartsData.filter(p => 
-        !keyword || isMatched(p.id, keyword) || isMatched(p.name, keyword)
-      );
-
-      filtered.forEach(p => {
-        const item = document.createElement('div');
-        item.className = 'part-dropdown-item';
-        item.innerHTML = `<b>${p.id} ${p.name}</b>`;
-        item.onclick = () => {
-          const input = listEl.previousElementSibling;
-          input.value = `${p.id} ${p.name}`;
-          listEl.style.display = 'none';
-        };
-        listEl.appendChild(item);
-      });
-    }
-
-    function submitInventoryReport() {
-      const reporter = document.getElementById('invModalReporter').value;
-      const editId = document.getElementById('invReportEditId').value;
-      const remarks = document.getElementById('invModalRemarks').value.trim();
-
-      if (!reporter) {
-        alert("⚠️ 報告者（メンバー・拠点）を選択してください。");
-        document.getElementById('invModalReporter').focus();
-        return;
-      }
-
-      let items = [];
-      document.querySelectorAll('#invModalItemsContainer .dynamic-row').forEach(row => {
-        const partName = row.querySelector('.inv-part-search').value.trim();
-        const qty = Number(row.querySelector('.inv-part-qty').value);
-        if (partName) {
-          items.push({ part: partName, qty: qty });
-        }
-      });
-
-      if (items.length === 0) {
-        alert("⚠️ 少なくとも1つ以上の部品と実在庫数を入力してください。");
-        return;
-      }
-
-      const now = new Date();
-      const timeStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-
-      if (editId) {
-        const idx = inventoryReports.findIndex(r => r.id === editId);
-        if (idx > -1) {
-          inventoryReports[idx] = {
-            ...inventoryReports[idx],
-            reporter: reporter,
-            items: items,
-            remarks: remarks,
-            time: timeStr
-          };
-        }
-      } else {
-        const newReport = {
-          id: 'INV-' + Date.now(),
-          reporter: reporter,
-          time: timeStr,
-          items: items,
-          remarks: remarks
-        };
-        inventoryReports.push(newReport);
-      }
-
-      localStorage.setItem('inventory_reports', JSON.stringify(inventoryReports));
-      renderInventoryReportsList();
-      closeInventoryModal();
-      alert("✅ 個人在庫の棚卸レポートを報告・保存しました！ (CSV出力するまでいつでも修正できます)");
-    }
-
-    function renderInventoryReportsList() {
-      const panel = document.getElementById('inventoryReportsPanel');
-      const list = document.getElementById('inventoryReportsList');
-
-      if (inventoryReports.length === 0) {
-        panel.style.display = 'none';
-        return;
-      }
-
-      panel.style.display = 'block';
-      list.innerHTML = '';
-
-      inventoryReports.forEach(r => {
-        const div = document.createElement('div');
-        div.className = 'unproc-card';
-        div.style.background = '#fff';
-        div.innerHTML = `
-          <div><b>報告者: ${r.reporter}</b> <span style="font-size:0.75rem; color:#666;">(${r.time})</span></div>
-          <div style="font-size:0.8rem; color:#555; margin:4px 0;">${r.items.map(i => `・${i.part} : <b>${i.qty}個</b>`).join('<br>')}${r.remarks ? `<br>備考: ${r.remarks}` : ''}</div>
-          <div style="display:flex; gap:6px; margin-top:6px;">
-            <button class="btn btn-secondary btn-sm" onclick="openInventoryModal('${r.id}')">✏️ 修正する</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteInventoryReport('${r.id}')">🗑️ 削除</button>
-          </div>
-        `;
-        list.appendChild(div);
-      });
-    }
-
-    function deleteInventoryReport(reportId) {
-      if (confirm("この棚卸報告を削除してもよろしいですか？")) {
-        inventoryReports = inventoryReports.filter(r => r.id !== reportId);
-        localStorage.setItem('inventory_reports', JSON.stringify(inventoryReports));
-        renderInventoryReportsList();
-      }
-    }
-
-    function downloadInventoryReportsCSV() {
-      if (inventoryReports.length === 0) {
-        alert("⚠️ 出力する未出力の棚卸報告がありません。");
-        return;
-      }
-
-      let csv = "報告ID,報告日時,報告者,品番・品名,実在庫数,備考\n";
-      inventoryReports.forEach(r => {
-        r.items.forEach(i => {
-          csv += `"${r.id}","${r.time}","${r.reporter}","${i.part}",${i.qty},"${r.remarks || ''}"\n`;
-        });
-      });
-
-      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `personal_inventory_reports_${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
-
-      if (confirm("CSVを出力しました。未出力の報告リストをクリア（完了）しますか？")) {
-        inventoryReports = [];
-        localStorage.removeItem('inventory_reports');
-        renderInventoryReportsList();
-      }
     }
 
     // ================= 倉庫移動タブ関連 =================
@@ -1864,31 +1605,6 @@
         `;
         list.appendChild(div);
       });
-    }
-
-    async function returnTempStockToUser(moveId, btn) {
-      const move = pendingMoves.find(m => m.id === moveId);
-      if (!move) return;
-
-      const targetUser = btn.previousElementSibling.value;
-      let itemsParsed = [];
-      try { itemsParsed = JSON.parse(move.itemsJson); } catch(e){}
-
-      showLoading("個人在庫へ戻し処理中...");
-      try {
-        for (let item of itemsParsed) {
-          let partId = item.part.split(' ')[0];
-          const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.part);
-          if (found) {
-            await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(targetUser)}&qtyDelta=${item.qty}`);
-          }
-        }
-        await updatePendingStatus(moveId, 'returned');
-        alert(`✅ 顧客「${move.customer}」の仮在庫を${targetUser}の個人在庫に戻しました！`);
-        await fetchAllDataFromGAS();
-      } finally {
-        hideLoading();
-      }
     }
 
     function renderUnprocessedLists() {
@@ -2791,10 +2507,10 @@
 
           let sysHtml = '';
           if (hasSystemData) {
-            // 奉行データからコード一致または部分一致で検索
+            // マッチング強化: ID完全一致、部分一致、または名前一致で検索
             let sysObj = systemExcelData[p.id];
             if (!sysObj) {
-              const foundKey = Object.keys(systemExcelData).find(k => k.includes(p.id) || p.id.includes(k));
+              const foundKey = Object.keys(systemExcelData).find(k => k.includes(p.id) || p.id.includes(k) || p.name.toLowerCase().includes(k));
               if (foundKey) sysObj = systemExcelData[foundKey];
             }
             const bugyoStock = sysObj ? sysObj.stock : 0;
