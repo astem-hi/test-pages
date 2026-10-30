@@ -36,6 +36,8 @@
 
     /* 棚マップタブのみ左右2カラムのため少し広めのmax-width */
     #tab-map { max-width: 1100px; }
+    /* 個人在庫・棚卸タブも広め */
+    #tab-stock { max-width: 1100px; }
 
     .tab-nav {
       display: flex;
@@ -199,6 +201,8 @@
     th, td { border: 1px solid var(--border-color); padding: 6px; text-align: left; }
     th { background: #f1f3f5; }
     .minus-stock { color: #ff3b30; font-weight: bold; background-color: #ffe6e6; }
+    .diff-plus { color: #28a745; font-weight: bold; }
+    .diff-minus { color: #ff3b30; font-weight: bold; }
     .clickable-part { color: var(--accent-color); text-decoration: underline; cursor: pointer; font-weight: bold; }
     
     .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; width: 100%; min-width: 0; }
@@ -267,7 +271,7 @@
     <button class="tab-btn active" id="btn-map" onclick="switchTab('map')">📍 棚マップ</button>
     <button class="tab-btn" id="btn-move" onclick="switchTab('move')">🚚 倉庫移動</button>
     <button class="tab-btn" id="btn-report" onclick="switchTab('report')">📝 作業報告</button>
-    <button class="tab-btn" id="btn-stock" onclick="switchTab('stock')">👤 個人在庫</button>
+    <button class="tab-btn" id="btn-stock" onclick="switchTab('stock')">👤 個人在庫・棚卸</button>
   </div>
 
   <!-- タブ1: 棚マップ -->
@@ -461,10 +465,45 @@
     </div>
   </div>
 
-  <!-- タブ4: 個人在庫 & 差異修正 -->
+  <!-- タブ4: 個人在庫・棚卸 -->
   <div id="tab-stock" class="tab-content">
     <div id="minusStockAlertPanel" style="display:none; background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; padding:10px; border-radius:8px; margin-bottom:12px; font-weight:bold;">
       ⚠️ マイナス在庫が発生している部品があります。在庫数を確認の上、必要に応じて差異修正を行ってください。
+    </div>
+
+    <!-- 個人在庫棚卸セクション（倉庫移動タブ風UIの流用） -->
+    <div class="panel" style="background:#eef4fd; border:1px solid #b8daff;">
+      <div class="section-title" style="color:#004085;">
+        <span>📋 個人在庫 棚卸・ズレ確認モード</span>
+        <button class="btn btn-secondary btn-sm" onclick="resetInventorySession()">🔄 入力クリア</button>
+      </div>
+      <p style="font-size:0.82rem; color:#555; margin-bottom:8px;">
+        棚卸対象のメンバーと拠点を選び、実際のカウント数（実在庫数）を入力してシステム上の数値を一括で確認・差異一括反映できます。
+      </p>
+      
+      <div class="grid-2col">
+        <div>
+          <label>棚卸対象（メンバー・拠点）</label>
+          <select id="invTargetUser" onchange="renderInventoryRows()">
+            <option value="大阪事務所" selected>大阪事務所</option>
+            <option value="平田">平田</option>
+            <option value="山本">山本</option>
+            <option value="向井">向井</option>
+            <option value="井阪">井阪</option>
+            <option value="河原">河原</option>
+            <option value="松井色素">松井色素</option>
+          </select>
+        </div>
+        <div>
+          <label>部品検索（絞り込み）</label>
+          <input type="text" id="invSearchKw" placeholder="🔍 品番・品名で絞り込み..." oninput="renderInventoryRows()">
+        </div>
+      </div>
+
+      <div style="max-height: 350px; overflow-y: auto; background:#fff; border:1px solid var(--border-color); border-radius:6px; padding:6px; margin-bottom:8px;" id="inventoryRowsContainer">
+        <!-- 動的生成 -->
+      </div>
+      <button class="btn btn-success" onclick="executeInventoryBatchUpdate()">✅ 入力された実在庫数をシステムに一括反映・差異修正</button>
     </div>
 
     <div class="panel" id="tempCustomerStockPanel" style="display:none; background:#e8f4f8; border:1px solid #b8daff;">
@@ -476,7 +515,7 @@
       <div class="section-title">
         <span>👤 個人・拠点別在庫一覧 <span style="font-size:0.75rem; color:#007bff; font-weight:normal;">(💡 部品名・品番をタップすると移動ポップアップが開きます)</span></span>
         <div style="display:flex; gap:6px;">
-          <button class="btn btn-danger btn-sm" onclick="openDiffModal()">⚠️ 差異修正</button>
+          <button class="btn btn-danger btn-sm" onclick="openDiffModal()">⚠️ 個別差異修正</button>
           <button class="btn btn-secondary btn-sm" onclick="downloadInventoryCSV()">📥 棚卸CSVダウンロード</button>
         </div>
       </div>
@@ -730,6 +769,7 @@
         renderUnprocessedLists();
         renderTempCustomerStock();
         renderDiffLogs();
+        renderInventoryRows();
       }
       if (tabId === 'report') {
         renderUnprocessedLists();
@@ -786,6 +826,7 @@
           renderUnprocessedLists();
           renderTempCustomerStock();
           renderDiffLogs();
+          renderInventoryRows();
         }
       } catch (err) {
         console.error("データ同期失敗:", err);
@@ -977,6 +1018,147 @@
         };
         container.appendChild(div);
       });
+    }
+
+    // ================= 個人在庫棚卸セクションのロジック =================
+    function renderInventoryRows() {
+      const container = document.getElementById('inventoryRowsContainer');
+      const targetUser = document.getElementById('invTargetUser').value;
+      const kw = document.getElementById('invSearchKw').value.trim();
+
+      if (globalPartsData.length === 0) {
+        container.innerHTML = '<div style="padding:10px; text-align:center; color:#888;">データを読み込み中...</div>';
+        return;
+      }
+
+      const filtered = globalPartsData.filter(p => !kw || isMatched(p.id, kw) || isMatched(p.name, kw));
+      container.innerHTML = '';
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="padding:10px; text-align:center; color:#888;">該当する部品がありません</div>';
+        return;
+      }
+
+      filtered.forEach(p => {
+        let currentSysStock = 0;
+        if (targetUser === '大阪事務所') currentSysStock = p.stock_osaka;
+        else if (targetUser === '平田') currentSysStock = p.stock_hirata;
+        else if (targetUser === '山本') currentSysStock = p.stock_yamamoto;
+        else if (targetUser === '向井') currentSysStock = p.stock_mukai;
+        else if (targetUser === '井阪') currentSysStock = p.stock_isaka;
+        else if (targetUser === '河原') currentSysStock = p.stock_kawahara;
+        else if (targetUser === '松井色素') currentSysStock = p.stock_matsui;
+
+        const row = document.createElement('div');
+        row.className = 'dynamic-row';
+        row.style.cssText = "align-items:center; border-bottom:1px solid #eee; padding-bottom:6px; margin-bottom:6px;";
+        row.innerHTML = `
+          <div style="flex:3; font-size:0.85rem;">
+            <b>${p.id}</b> ${p.name}<br>
+            <span style="color:#666; font-size:0.75rem;">システム在庫: <b id="sys-stock-${p.id}">${currentSysStock}</b></span>
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:0.7rem; margin:0;">実在庫(カウント)</label>
+            <input type="number" class="inv-actual-qty" data-partid="${p.id}" value="${currentSysStock}" style="padding:6px; margin:0; font-size:0.9rem;" oninput="updateInventoryDiffDisplay('${p.id}', ${currentSysStock})">
+          </div>
+          <div style="flex:1; text-align:center; font-size:0.85rem;">
+            <label style="font-size:0.7rem; margin:0;">差異</label>
+            <span id="inv-diff-${p.id}" class="diff-plus">±0</span>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function updateInventoryDiffDisplay(partId, currentSysStock) {
+      const input = document.querySelector(`.inv-actual-qty[data-partid="${partId}"]`);
+      const diffSpan = document.getElementById(`inv-diff-${partId}`);
+      if (!input || !diffSpan) return;
+
+      const actualVal = Number(input.value);
+      const diff = actualVal - currentSysStock;
+
+      if (diff > 0) {
+        diffSpan.className = 'diff-plus';
+        diffSpan.innerText = `+${diff}`;
+      } else if (diff < 0) {
+        diffSpan.className = 'diff-minus';
+        diffSpan.innerText = `${diff}`;
+      } else {
+        diffSpan.className = '';
+        diffSpan.style.color = '#666';
+        diffSpan.innerText = `±0`;
+      }
+    }
+
+    function resetInventorySession() {
+      renderInventoryRows();
+    }
+
+    async function executeInventoryBatchUpdate() {
+      const targetUser = document.getElementById('invTargetUser').value;
+      const inputs = document.querySelectorAll('.inv-actual-qty');
+
+      let updates = [];
+      inputs.forEach(input => {
+        const partId = input.dataset.partid;
+        const actualVal = Number(input.value);
+        
+        let currentSysStock = 0;
+        const p = globalPartsData.find(item => item.id === partId);
+        if (p) {
+          if (targetUser === '大阪事務所') currentSysStock = p.stock_osaka;
+          else if (targetUser === '平田') currentSysStock = p.stock_hirata;
+          else if (targetUser === '山本') currentSysStock = p.stock_yamamoto;
+          else if (targetUser === '向井') currentSysStock = p.stock_mukai;
+          else if (targetUser === '井阪') currentSysStock = p.stock_isaka;
+          else if (targetUser === '河原') currentSysStock = p.stock_kawahara;
+          else if (targetUser === '松井色素') currentSysStock = p.stock_matsui;
+        }
+
+        const delta = actualVal - currentSysStock;
+        if (delta !== 0) {
+          updates.push({ partId: partId, delta: delta });
+        }
+      });
+
+      if (updates.length === 0) {
+        alert("⚠️ システム上の在庫数から変更（差異）のある部品がありません。");
+        return;
+      }
+
+      if (!confirm(`【${targetUser}】の棚卸結果に基づき、${updates.length}件の差異を一括反映してログを記録します。よろしいですか？`)) {
+        return;
+      }
+
+      showLoading("棚卸の差異を一括反映中...");
+      try {
+        const now = new Date();
+        const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+        for (let u of updates) {
+          await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(u.partId)}&user=${encodeURIComponent(targetUser)}&qtyDelta=${u.delta}`);
+
+          const foundP = globalPartsData.find(item => item.id === u.partId);
+          const partFullName = foundP ? `${foundP.id} ${foundP.name}` : u.partId;
+
+          const logParams = new URLSearchParams({
+            action: 'saveLog',
+            time: timeStr,
+            editor: targetUser + '(棚卸)',
+            targetUser: targetUser,
+            part: partFullName,
+            qtyChange: (u.delta > 0 ? '+' : '') + u.delta,
+            reason: '個人在庫棚卸による一括差異修正'
+          });
+          await fetch(GAS_API_URL + "?" + logParams.toString());
+        }
+
+        alert("✅ 棚卸による在庫数の差異が一括反映されました！");
+        await fetchAllDataFromGAS();
+      } finally {
+        hideLoading();
+      }
     }
 
     // ================= 倉庫移動タブ関連 =================
