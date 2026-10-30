@@ -197,8 +197,6 @@
     th, td { border: 1px solid var(--border-color); padding: 6px; text-align: left; }
     th { background: #f1f3f5; }
     .minus-stock { color: #ff3b30; font-weight: bold; background-color: #ffe6e6; }
-    .diff-plus { color: #28a745; font-weight: bold; }
-    .diff-minus { color: #ff3b30; font-weight: bold; background-color: #ffe6e6; }
     .clickable-part { color: var(--accent-color); text-decoration: underline; cursor: pointer; font-weight: bold; }
     
     .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; width: 100%; min-width: 0; }
@@ -485,21 +483,6 @@
       <div id="inventoryReportsList" style="max-height: 250px; overflow-y: auto;"></div>
     </div>
 
-    <!-- システム基準エクセル（棚卸基準数値）インポート・比較パネル -->
-    <div class="panel" style="background:#f1f8ff; border:1px solid #c8e1ff;">
-      <div class="section-title" style="color:#003366;">
-        <span>📊 システム基準エクセル（棚卸データ）と現在庫の差異比較</span>
-      </div>
-      <p style="font-size:0.82rem; color:#555; margin-bottom:8px;">
-        毎月書き出しているシステムのエクセル（`倉庫コード`, `倉庫名`, `商品コード`, `商品名`, `現品残数`, `在庫残数` の形式）をアップロードまたは貼り付けて、システム在庫と現在庫の差異を一目で比較できます。
-      </p>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
-        <input type="file" id="systemExcelFileInput" accept=".csv, .xlsx, .xls" onchange="loadSystemExcelFile(this)" style="flex:1; margin:0; padding:6px; font-size:0.85rem !important;">
-        <button class="btn btn-secondary btn-sm" onclick="clearSystemExcelData()">🗑️ 基準データをクリア</button>
-      </div>
-      <div id="systemExcelStatus" style="font-size:0.82rem; color:#28a745; font-weight:bold; margin-bottom:4px;"></div>
-    </div>
-
     <div class="panel" id="tempCustomerStockPanel" style="display:none; background:#e8f4f8; border:1px solid #b8daff;">
       <div class="section-title" style="color:#004085;"><span>📦 お客様仮在庫 (個人返却・戻し処理)</span></div>
       <div id="tempCustomerStockList" style="max-height: 200px; overflow-y: auto;"></div>
@@ -517,7 +500,7 @@
       <div style="overflow-x: auto; max-height: 400px;">
         <table id="stockTable">
           <thead>
-            <tr id="stockTableHeaderRow">
+            <tr>
               <th>品番</th>
               <th>品名</th>
               <th>大阪</th>
@@ -767,17 +750,13 @@
     </div>
   </div>
 
-  <!-- SheetJS (Excel読み込み用) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
   <script>
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx0xHS5f9H-iZLLTGobrMp59dF5JUZtL6BcNHwVMIiY9gSMS75d3ZoZzsHcFfGhpP9u/exec";
 
     let globalPartsData = [];
     let diffLogs = [];
     let pendingMoves = [];
-    let inventoryReports = [];
-    let systemExcelData = {}; // システム基準エクセルデータ (code -> {name, stock})
+    let inventoryReports = []; // 未出力の個人棚卸報告リスト
     let currentUnusedData = null;
     let currentDistributeMove = null;
     let pendingReportSaveData = null;
@@ -827,6 +806,14 @@
       }
     });
 
+    document.addEventListener('focusin', function(e) {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+        setTimeout(() => {
+          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
+    });
+
     window.addEventListener('DOMContentLoaded', async () => {
       initMapGrid();
       document.getElementById('repDate').valueAsDate = new Date();
@@ -837,17 +824,10 @@
       const savedTab = localStorage.getItem('active_tab') || 'map';
       switchTab(savedTab);
 
+      // ローカルストレージから未出力の棚卸報告を読み込み
       const savedReports = localStorage.getItem('inventory_reports');
       if (savedReports) {
         try { inventoryReports = JSON.parse(savedReports); } catch(e){}
-      }
-
-      const savedSysExcel = localStorage.getItem('system_excel_data');
-      if (savedSysExcel) {
-        try {
-          systemExcelData = JSON.parse(savedSysExcel);
-          document.getElementById('systemExcelStatus').innerText = `✅ システム基準データ読み込み済み (${Object.keys(systemExcelData).length}件)`;
-        } catch(e){}
       }
 
       await fetchAllDataFromGAS();
@@ -892,62 +872,6 @@
         stock_kawahara: Number(obj['stock_kawahara'] || obj['河原'] || 0),
         stock_matsui: Number(obj['stock_matsui'] || obj['松井色素'] || obj['松井'] || 0)
       }));
-    }
-
-    // ================= システム基準エクセル読み込み・差異比較 =================
-    function loadSystemExcelFile(fileInput) {
-      const file = fileInput.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-          systemExcelData = {};
-          let parsedCount = 0;
-
-          // 期待する形式: 倉庫コード(0), 倉庫名(1), 商品コード(2), 商品名(3), 現品残数(4), 在庫残数(5)
-          jsonRows.forEach(row => {
-            if (row && row.length >= 6) {
-              const code = String(row[2] || '').trim();
-              const name = String(row[3] || '').trim();
-              const stockVal = Number(row[5]); // 在庫残数
-              if (code && !isNaN(stockVal)) {
-                systemExcelData[code] = {
-                  name: name,
-                  stock: stockVal
-                };
-                parsedCount++;
-              }
-            }
-          });
-
-          localStorage.setItem('system_excel_data', JSON.stringify(systemExcelData));
-          document.getElementById('systemExcelStatus').innerText = `✅ システム基準データ読込成功 (${parsedCount}件)`;
-          renderStockTable();
-          alert(`✅ システム基準エクセルを正常に読み込みました（${parsedCount}件）。現在庫一覧にシステム在庫数と差異が追加されました！`);
-        } catch (err) {
-          console.error(err);
-          alert("⚠️ エクセルの読み込みに失敗しました。ファイル形式をご確認ください。");
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    }
-
-    function clearSystemExcelData() {
-      if (confirm("システム基準データをクリアしてもよろしいですか？")) {
-        systemExcelData = {};
-        localStorage.removeItem('system_excel_data');
-        document.getElementById('systemExcelStatus').innerText = '';
-        document.getElementById('systemExcelFileInput').value = '';
-        renderStockTable();
-        alert("🗑️ 基準データをクリアしました。");
-      }
     }
 
     function saveDraft(formName) {
@@ -2650,45 +2574,11 @@
     function renderStockTable() {
       const kw = document.getElementById('stockSearchInput').value.trim();
       const tbody = document.getElementById('stockTableBody');
-      const theadRow = document.getElementById('stockTableHeaderRow');
       const alertPanel = document.getElementById('minusStockAlertPanel');
       tbody.innerHTML = '';
 
-      // システム基準データがある場合はヘッダーに「システム在庫」「差異」を追加
-      const hasSystemData = Object.keys(systemExcelData).length > 0;
-      if (hasSystemData) {
-        theadRow.innerHTML = `
-          <th>品番</th>
-          <th>品名</th>
-          <th>大阪</th>
-          <th>平田</th>
-          <th>山本</th>
-          <th>向井</th>
-          <th>井阪</th>
-          <th>河原</th>
-          <th>松井</th>
-          <th>合計</th>
-          <th style="background:#e8f4f8; color:#004085;">システム在庫</th>
-          <th style="background:#eef4fd; color:#004085;">差異(合計-システム)</th>
-        `;
-      } else {
-        theadRow.innerHTML = `
-          <th>品番</th>
-          <th>品名</th>
-          <th>大阪</th>
-          <th>平田</th>
-          <th>山本</th>
-          <th>向井</th>
-          <th>井阪</th>
-          <th>河原</th>
-          <th>松井</th>
-          <th>合計</th>
-        `;
-      }
-
       if (globalPartsData.length === 0) {
-        const colSpan = hasSystemData ? 12 : 10;
-        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; color:#888;">データが読み込まれていません</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#888;">データが読み込まれていません</td></tr>`;
         alertPanel.style.display = 'none';
         return;
       }
@@ -2697,8 +2587,7 @@
 
       const filtered = globalPartsData.filter(p => !kw || isMatched(p.id, kw) || isMatched(p.name, kw));
       if(filtered.length === 0) {
-        const colSpan = hasSystemData ? 12 : 10;
-        tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center;">該当する部品がありません</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">該当する部品がありません</td></tr>`;
       } else {
         filtered.forEach(p => {
           const stocks = [
@@ -2709,23 +2598,8 @@
           if (hasMinusInRow) hasMinusStockGlobal = true;
 
           const total = stocks.reduce((sum, s) => sum + (Number(s) || 0), 0);
-          const formatCell = (val) => Number(val) < 0 ? `<td class="minus-stock">${val}</td>` : `<td>${val}</td>`;
 
-          let sysHtml = '';
-          if (hasSystemData) {
-            const sysObj = systemExcelData[p.id];
-            const sysStock = sysObj ? sysObj.stock : 0;
-            const diff = total - sysStock;
-            let diffHtml = '';
-            if (diff > 0) {
-              diffHtml = `<td class="diff-plus">+${diff}</td>`;
-            } else if (diff < 0) {
-              diffHtml = `<td class="diff-minus">${diff}</td>`;
-            } else {
-              diffHtml = `<td style="color:#6c757d;">0 (一致)</td>`;
-            }
-            sysHtml = `<td style="background:#f8f9fa; font-weight:bold;">${sysStock}</td>${diffHtml}`;
-          }
+          const formatCell = (val) => Number(val) < 0 ? `<td class="minus-stock">${val}</td>` : `<td>${val}</td>`;
 
           const tr = document.createElement('tr');
           tr.innerHTML = `
@@ -2739,7 +2613,6 @@
             ${formatCell(p.stock_kawahara)}
             ${formatCell(p.stock_matsui)}
             <td><b>${total}</b></td>
-            ${sysHtml}
           `;
           tbody.appendChild(tr);
         });
