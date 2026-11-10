@@ -2408,9 +2408,8 @@
             let labelKey = cleanName;
             if (pSource === 'TEMP__PURCHASED') {
               labelKey = `${cleanName}(お客様在庫より使用)`;
-            } else if (pSource.startsWith('MOVE__')) {
-              labelKey = `${cleanName}(移動中部品より使用)`;
             }
+            // ※ご要望により「移動中部品より使用」の表示は除外し、通常の部品名のみにしています
 
             aggregatedPartsMap[labelKey] = (aggregatedPartsMap[labelKey] || 0) + pQty;
           }
@@ -2493,7 +2492,7 @@
       let usedPartsList = [];
       let reportDetailsObj = [];
       let defectPartsWithTempPurchased = [];
-      let moveUsageMap = {}; // MOVE__id__part -> usedQty
+      let moveUsageMap = {};
 
       document.querySelectorAll('.machine-section').forEach(sec => {
         const type = sec.querySelector('.rep-m-type').value;
@@ -2550,9 +2549,7 @@
         });
       });
 
-      // 移動部品の使用数量が手配数を上回っていないかチェック
       for (let key in moveUsageMap) {
-        // key format: MOVE__id____partname
         const partsArr = key.split('____');
         const moveId = partsArr[0].replace('MOVE__', '');
         const partFull = partsArr[1];
@@ -2684,7 +2681,6 @@
           }
         }
 
-        // 移動部品の消化処理 & 未使用分の算出
         let unusedItemsToAllocate = [];
         for (let key in moveUsageMap) {
           const partsArr = key.split('____');
@@ -2702,7 +2698,6 @@
               if (diff > 0) {
                 unusedItemsToAllocate.push({ part: partFull, unusedQty: diff, receiver: moveObj.receiver });
               }
-              // 移動ステータスをprocessedに更新
               await updatePendingStatus(moveId, 'processed');
             }
           }
@@ -2737,20 +2732,19 @@
     }
 
     function openUnusedModalForMultiple(unusedList) {
+      currentUnusedData = unusedList;
       const container = document.getElementById('unusedItemsFormContainer');
       container.innerHTML = '';
 
       const reporter = document.getElementById('repReporter').value;
-      let activeCompanions = [reporter];
-      document.querySelectorAll('#repCompanions input:checked').forEach(el => activeCompanions.push(el.value));
 
       unusedList.forEach((item, idx) => {
         const itemBox = document.createElement('div');
         itemBox.style.cssText = "margin-bottom:12px; border:1px solid #ddd; padding:8px; border-radius:6px; background:#fafafa;";
         itemBox.innerHTML = `
-          <div style="font-weight:bold; font-size:0.9rem; color:#d9534f; margin-bottom:4px;">${item.part} (未使用の余り数: ${item.unusedQty}個)</div>
+          <div style="font-weight:bold; font-size:0.9rem; color:#d9534f; margin-bottom:4px;">${item.part} (未使用の余り数: <span class="max-unused-qty" data-max="${item.unusedQty}">${item.unusedQty}</span>個)</div>
           <div id="unusedRowsContainer-${idx}"></div>
-          <button class="btn btn-secondary btn-sm" style="margin-top:4px;" onclick="addUnusedRow(${idx}, '${item.part}', ${item.unusedQty}, '${item.receiver}')">＋ 配分先メンバーを追加</button>
+          <button class="btn btn-secondary btn-sm" style="margin-top:4px;" onclick="addUnusedRow(${idx}, '${item.part}', 1, '${item.receiver}')">＋ 配分先メンバーを追加</button>
         `;
         container.appendChild(itemBox);
         addUnusedRow(idx, item.part, item.unusedQty, item.receiver);
@@ -2765,16 +2759,12 @@
       row.className = 'dynamic-row';
       row.style.marginBottom = '4px';
 
-      const reporter = document.getElementById('repReporter').value;
-      let activeCompanions = [reporter];
-      document.querySelectorAll('#repCompanions input:checked').forEach(el => activeCompanions.push(el.value));
-
       row.innerHTML = `
         <select class="unused-user" style="flex:2;" data-part="${partName}">
           ${ALL_TARGETS.filter(t=>t!=='大阪事務所').map(m => `<option value="${m}" ${m===defaultUser?'selected':''}>${m}</option>`).join('')}
           <option value="大阪事務所">大阪事務所</option>
         </select>
-        <input type="number" min="1" max="${defaultQty}" value="${defaultQty}" class="unused-qty" style="flex:1;" data-part="${partName}">
+        <input type="number" min="1" value="${defaultQty}" class="unused-qty" style="flex:1;" data-part="${partName}">
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">削除</button>
       `;
       container.appendChild(row);
@@ -2782,6 +2772,7 @@
 
     function closeUnusedModal() {
       document.getElementById('unusedModal').style.display = 'none';
+      currentUnusedData = null;
       fetchAllDataFromGAS();
     }
 
@@ -2790,8 +2781,11 @@
       let allocations = [];
 
       for (let box of itemBoxes) {
+        const maxSpan = box.querySelector('.max-unused-qty');
+        const maxQty = Number(maxSpan.dataset.max);
         const rows = box.querySelectorAll('.dynamic-row');
-        let totalAssigned = 0;
+        
+        let sumQty = 0;
         let boxPartName = '';
 
         rows.forEach(r => {
@@ -2799,9 +2793,14 @@
           const qty = Number(r.querySelector('.unused-qty').value || 0);
           const partName = r.querySelector('.unused-user').dataset.part;
           boxPartName = partName;
-          totalAssigned += qty;
+          sumQty += qty;
           allocations.push({ part: partName, user, qty });
         });
+
+        if (sumQty > maxQty) {
+          alert(`⚠️ 【${boxPartName}】の分配数量の合計(${sumQty}個)が、元の未使用数量(${maxQty}個)を上回っています。数量を調整してください。`);
+          return;
+        }
       }
 
       showLoading("未使用部品を個人在庫へ分配中...");
