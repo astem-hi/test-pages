@@ -423,11 +423,11 @@
         <button class="btn btn-secondary btn-sm" onclick="resetForm('report')">🔄 入力リセット</button>
       </div>
 
-      <button class="btn btn-warning" style="margin-bottom:12px; font-weight:bold;" onclick="openMoveModalForReport()">🚚 部品移動🚨 (移動済み部品を作業報告に取り込む)</button>
+      <button class="btn btn-warning" style="margin-bottom:12px; font-weight:bold;" onclick="openMoveModalForReport()">🚚 移動手配済みリスト・直送部品の確認 & 紐づけ</button>
 
       <div id="reportUnprocessedContainer" style="margin-bottom: 12px; display:none;">
         <div style="background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:8px;">
-          <b style="color:#856404;">⚠️ 未処理の移動部品があります（作業報告で処理待ち）</b>
+          <b style="color:#856404;">⚠️ 未処理の移動部品（直送・客先・倉庫移動）があります</b>
           <div id="reportUnprocessedList" style="margin-top:6px;"></div>
         </div>
       </div>
@@ -545,7 +545,7 @@
       
       <!-- 棚卸完了ステータスランプ一覧 -->
       <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; background:#fff; padding:10px; border-radius:6px; border:1px solid #dcdfe6;" id="inventoryStatusLampsContainer">
-        <!-- 动态生成ランプ -->
+        <!-- 動的生成ランプ -->
       </div>
     </div>
 
@@ -711,7 +711,7 @@
   <!-- モーダル各種 -->
   <div id="moveSelectModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1100; align-items:center; justify-content:center;">
     <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:450px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
-      <div class="section-title"><span>🚚 移動手配済みリストから選択</span></div>
+      <div class="section-title"><span>🚚 移動手配済みリスト・直送部品の確認</span></div>
       <div id="moveSelectModalList" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div>
       <button class="btn btn-secondary" onclick="closeMoveSelectModal()">閉じる</button>
     </div>
@@ -728,14 +728,17 @@
     </div>
   </div>
 
+  <!-- 未使用部品の複数人分配モーダル -->
   <div id="unusedModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1100; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:450px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
-      <div class="section-title"><span>📦 未使用部品の個人在庫への割り当て</span></div>
-      <p style="font-size:0.85rem; color:#555;">以下の部品が未使用として残りました。誰の個人在庫に加算しますか？</p>
-      <div id="unusedItemsFormContainer" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div>
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-success" onclick="submitUnusedItemsAllocation()">確定して在庫に加算</button>
-        <button class="btn btn-secondary" onclick="closeUnusedModal()">スキップする</button>
+    <div style="background:#fff; padding:16px; border-radius:10px; width:92%; max-width:480px; box-shadow:0 4px 12px rgba(0,0,0,0.15); max-height:90vh; display:flex; flex-direction:column;">
+      <div class="section-title"><span>📦 未使用部品の個人在庫への分配加算</span></div>
+      <p style="font-size:0.82rem; color:#555; margin-bottom:8px;">
+        移動部品のうち、使用されずに余った「未使用分」があります。誰のどの個人在庫にいくつ加算するか（複数人への分配も可）設定してください。
+      </p>
+      <div id="unusedItemsFormContainer" style="overflow-y:auto; flex:1; margin-bottom:10px; padding-right:4px;"></div>
+      <div style="display:flex; gap:8px; border-top:1px solid var(--border-color); padding-top:10px;">
+        <button class="btn btn-success" style="flex:2;" onclick="submitUnusedItemsAllocation()">確定して個人在庫に加算</button>
+        <button class="btn btn-secondary" style="flex:1;" onclick="closeUnusedModal()">スキップする</button>
       </div>
     </div>
   </div>
@@ -904,6 +907,7 @@
           renderDiffLogs();
           renderInventoryStatusLamps();
           renderInventoryReportsList();
+          refreshReportSourceSelects();
         }
       } catch (err) {
         console.error("データ同期失敗:", err);
@@ -934,7 +938,6 @@
       container.innerHTML = '';
 
       ALL_TARGETS.forEach(target => {
-        // 直近の報告があるかチェック
         const hasReport = inventoryReports.some(r => r.reporter === target);
         const lamp = document.createElement('div');
         lamp.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:#f8f9fa; border:1px solid #dcdfe6; border-radius:6px; min-width:140px; flex:1;";
@@ -1004,7 +1007,6 @@
       }
     }
 
-    // 差異集計Excel出力（mode: 1 = 奉行在庫基準, 2 = 統合システム基準）
     function downloadAggregatedExcel(mode) {
       if (mode === 1 && Object.keys(systemExcelData).length === 0) {
         alert("⚠️ 先に奉行から書き出したExcelファイルをアップロードしてください。");
@@ -1016,7 +1018,6 @@
       ];
 
       if (mode === 1) {
-        // ① 奉行在庫基準
         systemExcelRawRows.forEach(row => {
           if (row && row.length >= 6) {
             const warehouseCode = row[0];
@@ -1057,14 +1058,13 @@
                 matsui,
                 total,
                 stockDiff,
-                "", // 備考欄
-                `=N${outRows.length+1}-O${outRows.length+1}` // 最終差異数式
+                "",
+                `=N${outRows.length+1}-O${outRows.length+1}`
               ]);
             }
           }
         });
       } else {
-        // ② 統合システム基準 (globalPartsDataベース)
         globalPartsData.forEach(p => {
           const osaka = p.stock_osaka;
           const hirata = p.stock_hirata;
@@ -1075,7 +1075,6 @@
           const matsui = p.stock_matsui;
           const total = osaka + hirata + yamamoto + mukai + isaka + kawahara + matsui;
 
-          // 奉行データがあればそれを基準にし、なければ合計値
           let baseStock = total;
           let sysObj = systemExcelData[p.id];
           if (sysObj) baseStock = sysObj.stock;
@@ -1811,39 +1810,31 @@
         return;
       }
 
-      if (type === '大阪事務所在庫から発送（部品移動のみ）') {
-        showLoading("持出元減算・仮在庫登録中...");
+      if (type === '大阪事務所在庫から発送（部品移動のみ）' || type === '倉庫移動') {
+        const aDateMode = document.getElementById('moveArrivalDate').value;
+        const aDateVal = document.getElementById('moveArrivalCustom').value;
+        let arrivalDateStr = (aDateMode === '日付指定' && aDateVal) ? aDateVal : new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        const now = new Date();
+        const instructionDateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
+
+        const moveRecord = {
+          id: 'MOVE-' + Date.now(),
+          type: type,
+          customer: customerName,
+          destination: destType === '自由記述' ? customerName : destType,
+          receiver: receiverSelect ? receiverSelect.value : sourceUser,
+          instructionDate: instructionDateStr,
+          arrivalDate: arrivalDateStr,
+          itemsJson: JSON.stringify(items),
+          status: 'pending'
+        };
+
+        showLoading("移動指示を保存中...");
         try {
-          for (let item of items) {
-            let partId = item.part.split(' ')[0];
-            const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.part);
-            if (found) {
-              await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(sourceUser)}&qtyDelta=-${item.qty}`);
-            }
-          }
-
-          const aDateMode = document.getElementById('moveArrivalDate').value;
-          const aDateVal = document.getElementById('moveArrivalCustom').value;
-          let arrivalDateStr = (aDateMode === '日付指定' && aDateVal) ? aDateVal : new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-          const now = new Date();
-          const instructionDateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
-
-          const moveRecord = {
-            id: 'MOVE-' + Date.now(),
-            type: type,
-            customer: customerName,
-            destination: customerName,
-            receiver: receiverSelect ? receiverSelect.value : sourceUser,
-            instructionDate: instructionDateStr,
-            arrivalDate: arrivalDateStr,
-            itemsJson: JSON.stringify(items),
-            status: 'pending'
-          };
-
           await fetch(GAS_API_URL + "?action=savePending&" + new URLSearchParams(moveRecord));
           navigator.clipboard.writeText(document.getElementById('movePreview').innerText);
           localStorage.removeItem('draft_move');
-          alert(`📋 文章をコピーし、${sourceUser}から減算のうえ顧客「${customerName}」の仮在庫にセットしました！`);
+          alert("📋 文章をコピーし、未処理・移動中部品リストにセットしました！作業報告の「移動手配済みリスト」からいつでも選択できます。");
           await fetchAllDataFromGAS();
         } finally {
           hideLoading();
@@ -1856,36 +1847,6 @@
         localStorage.removeItem('draft_move');
         alert("📋 文章をコピーしました！");
         return;
-      }
-
-      const aDateMode = document.getElementById('moveArrivalDate').value;
-      const aDateVal = document.getElementById('moveArrivalCustom').value;
-      let arrivalDateStr = (aDateMode === '日付指定' && aDateVal) ? aDateVal : new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-
-      const now = new Date();
-      const instructionDateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
-
-      const moveRecord = {
-        id: 'MOVE-' + Date.now(),
-        type: type,
-        customer: customerName,
-        destination: destType === '自由記述' ? customerName : destType,
-        receiver: receiverSelect ? receiverSelect.value : '（指定なし）',
-        instructionDate: instructionDateStr,
-        arrivalDate: arrivalDateStr,
-        itemsJson: JSON.stringify(items),
-        status: 'pending'
-      };
-
-      showLoading("移動指示を保存中...");
-      try {
-        await fetch(GAS_API_URL + "?action=savePending&" + new URLSearchParams(moveRecord));
-        navigator.clipboard.writeText(document.getElementById('movePreview').innerText);
-        localStorage.removeItem('draft_move');
-        alert("📋 文章をコピーし、全員の端末の未処理リストにセットしました！");
-        await fetchAllDataFromGAS();
-      } finally {
-        hideLoading();
       }
     }
 
@@ -1909,7 +1870,7 @@
         div.className = 'unproc-card';
         div.style.background = '#fff';
         div.innerHTML = `
-          <div><b>[仮在庫] 顧客: ${m.customer}</b> (発送元/責任者: ${m.receiver})</div>
+          <div><b>[移動中/仮在庫] 顧客: ${m.customer}</b> (発送元/責任者: ${m.receiver})</div>
           <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} × ${i.qty}`).join('<br>')}</div>
           <div style="display:flex; gap:6px; margin-top:6px; align-items:center;">
             <span style="font-size:0.75rem;">戻し先:</span>
@@ -1951,25 +1912,24 @@
 
     function renderUnprocessedLists() {
       const todayStr = new Date().toISOString().slice(0, 10);
-      const availableMoves = pendingMoves.filter(m => m.status === 'pending' && m.arrivalDate <= todayStr);
+      const activePending = pendingMoves.filter(m => m.status === 'pending');
 
       const reportContainer = document.getElementById('reportUnprocessedContainer');
       const reportList = document.getElementById('reportUnprocessedList');
-      const reportMoves = availableMoves.filter(m => m.destination !== '大阪事務所' && m.destination !== '松井色素');
 
-      if (reportMoves.length > 0) {
+      if (activePending.length > 0) {
         reportContainer.style.display = 'block';
         reportList.innerHTML = '';
-        reportMoves.forEach((m) => {
+        activePending.forEach((m) => {
           let itemsParsed = [];
           try { itemsParsed = JSON.parse(m.itemsJson); } catch(e){}
           const div = document.createElement('div');
           div.className = 'unproc-card';
           div.innerHTML = `
-            <div><b>顧客: ${m.customer}</b> (指示日: ${m.instructionDate} / 到着日: ${m.arrivalDate} / 責任者: ${m.receiver})</div>
+            <div><b>🚚 顧客: ${m.customer}</b> (指示日: ${m.instructionDate} / 責任者: ${m.receiver})</div>
             <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} × ${i.qty}`).join('<br>')}</div>
             <div style="display:flex; gap:6px; margin-top:6px;">
-              <button class="btn btn-success btn-sm" onclick="processReportIntegration('${m.id}')">この内容で作業報告と紐付け</button>
+              <button class="btn btn-success btn-sm" onclick="autoFillReportFromMove('${m.id}')">この内容で作業報告に自動入力</button>
               <button class="btn btn-secondary btn-sm" onclick="updatePendingStatus('${m.id}', 'skipped')">スルーする</button>
             </div>
           `;
@@ -1981,11 +1941,12 @@
 
       const stockPanel = document.getElementById('stockUnprocessedPanel');
       const stockList = document.getElementById('stockUnprocessedList');
+      const availableMovesForStock = pendingMoves.filter(m => m.status === 'pending' && m.arrivalDate <= todayStr);
       
-      if (availableMoves.length > 0) {
+      if (availableMovesForStock.length > 0) {
         stockPanel.style.display = 'block';
         stockList.innerHTML = '';
-        availableMoves.forEach((m) => {
+        availableMovesForStock.forEach((m) => {
           let itemsParsed = [];
           try { itemsParsed = JSON.parse(m.itemsJson); } catch(e){}
           const div = document.createElement('div');
@@ -2003,6 +1964,7 @@
       } else {
         stockPanel.style.display = 'none';
       }
+      refreshReportSourceSelects();
     }
 
     async function updatePendingStatus(moveId, newStatus) {
@@ -2020,24 +1982,22 @@
     }
 
     function openMoveModalForReport() {
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const availableMoves = pendingMoves.filter(m => m.status === 'pending' && m.arrivalDate <= todayStr && m.destination !== '大阪事務所' && m.destination !== '松井色素');
-      
+      const activePending = pendingMoves.filter(m => m.status === 'pending');
       const listContainer = document.getElementById('moveSelectModalList');
       listContainer.innerHTML = '';
 
-      if (availableMoves.length === 0) {
-        listContainer.innerHTML = '<div style="color:#888; font-size:0.85rem;">対象となる未処理の移動手配リストはありません。</div>';
+      if (activePending.length === 0) {
+        listContainer.innerHTML = '<div style="color:#888; font-size:0.85rem;">現在、移動手配中・直送中の部品はありません。</div>';
       } else {
-        availableMoves.forEach(m => {
+        activePending.forEach(m => {
           let itemsParsed = [];
           try { itemsParsed = JSON.parse(m.itemsJson); } catch(e){}
           const div = document.createElement('div');
           div.className = 'unproc-card';
           div.innerHTML = `
-            <div><b>顧客: ${m.customer}</b> (指示日: ${m.instructionDate} / 責任者: ${m.receiver})</div>
+            <div><b>🚚 顧客: ${m.customer}</b> (指示日: ${m.instructionDate} / 責任者: ${m.receiver})</div>
             <div style="font-size:0.8rem; color:#555; margin:4px 0;">${itemsParsed.map(i => `・${i.part} × ${i.qty}`).join('<br>')}</div>
-            <button class="btn btn-success btn-sm" onclick="processReportIntegration('${m.id}'); closeMoveSelectModal();">この内容で作業報告に反映</button>
+            <button class="btn btn-success btn-sm" onclick="autoFillReportFromMove('${m.id}'); closeMoveSelectModal();">この内容で作業報告に自動入力</button>
           `;
           listContainer.appendChild(div);
         });
@@ -2050,7 +2010,7 @@
       document.getElementById('moveSelectModal').style.display = 'none';
     }
 
-    async function processReportIntegration(moveId) {
+    function autoFillReportFromMove(moveId) {
       const move = pendingMoves.find(m => m.id === moveId);
       if (!move) return;
 
@@ -2062,37 +2022,13 @@
       if (machineSecs.length > 0) {
         const partsContainer = machineSecs[0].querySelector('.rep-parts-container');
         partsContainer.innerHTML = '';
-        const reporter = document.getElementById('repReporter').value;
         itemsParsed.forEach(item => {
-          const row = document.createElement('div');
-          row.className = 'dynamic-row';
-          row.innerHTML = `
-            <div class="part-search-container" style="flex:2;">
-              <input type="text" class="rep-part-search" value="${item.part}" placeholder="🔍 品番・品名..." oninput="filterReportDropdown(this)" onfocus="showReportDropdown(this)">
-              <div class="part-dropdown-list"></div>
-            </div>
-            <select style="flex:1;" class="rep-part-qty" onchange="checkReportQtyCustom(this)">
-              <option value="${item.qty}" selected>${item.qty}</option>
-              ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}">${n}</option>`).join('')}
-              <option value="custom">自由入力...</option>
-            </select>
-            <select style="flex:1;" class="rep-part-source">
-              <option value="大阪事務所">大阪事務所</option>
-              <option value="TEMP__PURCHASED">客先在庫(購入済)</option>
-              <optgroup label="個人在庫">
-                ${ALL_TARGETS.filter(t=>t!=='大阪事務所').map(m => `<option value="${m}" ${m===reporter?'selected':''}>${m}</option>`).join('')}
-              </optgroup>
-            </select>
-            <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
-          `;
-          partsContainer.appendChild(row);
+          addReportPartRowWithPreset(partsContainer, item.part, item.qty, `MOVE__${move.id}`);
         });
       }
 
       generateReportText();
-      currentUnusedData = { ...move, items: itemsParsed };
-      await updatePendingStatus(moveId, 'processed');
-      alert(`✅ 顧客「${move.customer}」の移動部品を作業報告に反映しました！`);
+      alert(`✅ 顧客「${move.customer}」の移動・直送部品を作業報告に反映しました！使用部品の持出元から「🚚 移動中部品」としていつでも選択できます。`);
     }
 
     function openStockDistributeModal(moveId) {
@@ -2115,7 +2051,6 @@
           <button class="btn btn-secondary btn-sm" style="margin-top:4px;" onclick="addDistRow(${itemIdx}, '${item.part}')">＋ 分配先を追加</button>
         `;
         container.appendChild(itemBox);
-
         addDistRow(itemIdx, item.part, move.receiver, item.qty);
       });
 
@@ -2216,6 +2151,20 @@
 
     function refreshReportSourceSelects() {
       const reporter = document.getElementById('repReporter').value;
+      const activePending = pendingMoves.filter(m => m.status === 'pending');
+
+      let pendingOptionsHtml = '';
+      if (activePending.length > 0) {
+        pendingOptionsHtml = `<optgroup label="🚚 移動中部品（直送・倉庫移動）">`;
+        activePending.forEach(m => {
+          let itemsParsed = [];
+          try { itemsParsed = JSON.parse(m.itemsJson); } catch(e){}
+          itemsParsed.forEach(it => {
+            pendingOptionsHtml += `<option value="MOVE__${m.id}____${it.part}">[${m.customer}] ${it.part} (手配数:${it.qty})</option>`;
+          });
+        });
+        pendingOptionsHtml += `</optgroup>`;
+      }
 
       document.querySelectorAll('.rep-part-source').forEach(sel => {
         const currentVal = sel.value;
@@ -2225,6 +2174,7 @@
           <optgroup label="個人在庫">
             ${ALL_TARGETS.filter(t=>t!=='大阪事務所').map(m => `<option value="${m}">${m}</option>`).join('')}
           </optgroup>
+          ${pendingOptionsHtml}
         `;
         if (currentVal) sel.value = currentVal;
         else sel.value = reporter;
@@ -2238,6 +2188,7 @@
           <optgroup label="個人在庫">
             ${ALL_TARGETS.filter(t=>t!=='大阪事務所').map(m => `<option value="${m}">${m}</option>`).join('')}
           </optgroup>
+          ${pendingOptionsHtml}
         `;
         if (currentVal) sel.value = currentVal;
         else sel.value = reporter;
@@ -2291,30 +2242,54 @@
 
     function addReportPartRow(btn) {
       const container = btn.previousElementSibling;
-      const reporter = document.getElementById('repReporter').value;
+      addReportPartRowWithPreset(container, '', 1, '');
+      generateReportText();
+    }
 
+    function addReportPartRowWithPreset(container, presetPart = '', presetQty = 1, presetSource = '') {
+      const reporter = document.getElementById('repReporter').value;
       const row = document.createElement('div');
       row.className = 'dynamic-row';
       row.innerHTML = `
         <div class="part-search-container" style="flex:2;">
-          <input type="text" class="rep-part-search" placeholder="🔍 品番・品名検索..." oninput="filterReportDropdown(this)" onfocus="showReportDropdown(this)">
+          <input type="text" class="rep-part-search" value="${presetPart}" placeholder="🔍 品番・品名検索..." oninput="filterReportDropdown(this)" onfocus="showReportDropdown(this)">
           <div class="part-dropdown-list"></div>
         </div>
         <select style="flex:1;" class="rep-part-qty" onchange="checkReportQtyCustom(this)">
-          ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${n===1?'selected':''}>${n}</option>`).join('')}
-          <option value="custom">自由入力...</option>
+          ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${n===Number(presetQty)?'selected':''}>${n}</option>`).join('')}
+          <option value="custom" ${presetQty>10?'selected':''}>自由入力...</option>
         </select>
         <select style="flex:1;" class="rep-part-source" title="持出元">
           <option value="大阪事務所">大阪事務所</option>
           <option value="TEMP__PURCHASED">客先在庫(購入済)</option>
           <optgroup label="個人在庫">
-            ${ALL_TARGETS.filter(t=>t!=='大阪事務所').map(m => `<option value="${m}" ${m===reporter?'selected':''}>${m}</option>`).join('')}
+            ${ALL_TARGETS.filter(t=>t!=='大阪事務所').map(m => `<option value="${m}">${m}</option>`).join('')}
           </optgroup>
         </select>
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove(); generateReportText();">削除</button>
       `;
       container.appendChild(row);
-      row.querySelector('.rep-part-source').value = reporter;
+
+      const sourceSel = row.querySelector('.rep-part-source');
+      refreshReportSourceSelects();
+      if (presetSource) {
+        sourceSel.value = presetSource;
+      } else {
+        sourceSel.value = reporter;
+      }
+
+      if (presetQty > 10) {
+        const sel = row.querySelector('.rep-part-qty');
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '1';
+        input.value = presetQty;
+        input.style.flex = '1';
+        input.className = 'rep-part-qty-input';
+        input.oninput = generateReportText;
+        sel.replaceWith(input);
+      }
+
       populateReportDropdown(row.querySelector('.part-dropdown-list'), '');
       generateReportText();
     }
@@ -2343,6 +2318,7 @@
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove();">削除</button>
       `;
       container.appendChild(row);
+      refreshReportSourceSelects();
       row.querySelector('.rep-defect-source').value = reporter;
       populateReportDropdown(row.querySelector('.part-dropdown-list'), '');
     }
@@ -2396,7 +2372,6 @@
 
     function generateReportText() {
       const date = document.getElementById('repDate').value;
-
       let text = `${date} 作業報告\n\n`;
 
       document.querySelectorAll('.machine-section').forEach(sec => {
@@ -2433,6 +2408,8 @@
             let labelKey = cleanName;
             if (pSource === 'TEMP__PURCHASED') {
               labelKey = `${cleanName}(お客様在庫より使用)`;
+            } else if (pSource.startsWith('MOVE__')) {
+              labelKey = `${cleanName}(移動中部品より使用)`;
             }
 
             aggregatedPartsMap[labelKey] = (aggregatedPartsMap[labelKey] || 0) + pQty;
@@ -2464,7 +2441,7 @@
       let usageByUserPart = {};
 
       usedPartsList.forEach(item => {
-        if (item.source === 'TEMP__PURCHASED') return;
+        if (item.source === 'TEMP__PURCHASED' || item.source.startsWith('MOVE__')) return;
 
         let partId = item.name.split(' ')[0];
         const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.name);
@@ -2516,6 +2493,7 @@
       let usedPartsList = [];
       let reportDetailsObj = [];
       let defectPartsWithTempPurchased = [];
+      let moveUsageMap = {}; // MOVE__id__part -> usedQty
 
       document.querySelectorAll('.machine-section').forEach(sec => {
         const type = sec.querySelector('.rep-m-type').value;
@@ -2537,6 +2515,10 @@
           if (pName && pQty > 0) {
             usedPartsList.push({ name: pName, qty: pQty, source: pSource });
             secParts.push({ part: pName, qty: pQty, source: pSource });
+
+            if (pSource.startsWith('MOVE__')) {
+              moveUsageMap[pSource] = (moveUsageMap[pSource] || 0) + pQty;
+            }
           }
         });
 
@@ -2568,10 +2550,31 @@
         });
       });
 
+      // 移動部品の使用数量が手配数を上回っていないかチェック
+      for (let key in moveUsageMap) {
+        // key format: MOVE__id____partname
+        const partsArr = key.split('____');
+        const moveId = partsArr[0].replace('MOVE__', '');
+        const partFull = partsArr[1];
+        const usedQty = moveUsageMap[key];
+
+        const moveObj = pendingMoves.find(m => m.id === moveId);
+        if (moveObj) {
+          let itemsParsed = [];
+          try { itemsParsed = JSON.parse(moveObj.itemsJson); } catch(e){}
+          const matchedItem = itemsParsed.find(i => i.part === partFull);
+          if (matchedItem && usedQty > matchedItem.qty) {
+            alert(`⚠️ 【${partFull}】の使用数量(${usedQty}個)が、移動手配された数量(${matchedItem.qty}個)を上回っています。数量を確認してください。`);
+            return;
+          }
+        }
+      }
+
       if (defectPartsWithTempPurchased.length > 0) {
         pendingDefectReplenishQueue = [...defectPartsWithTempPurchased];
         pendingReportSaveData = {
           usedPartsList,
+          moveUsageMap,
           reportLogParamsData: {
             reporter, companions, customer, reportDetailsObj, overallRemarks
           }
@@ -2584,6 +2587,7 @@
       if (shortages.length > 0) {
         pendingReportSaveData = {
           usedPartsList,
+          moveUsageMap,
           reportLogParamsData: {
             reporter, companions, customer, reportDetailsObj, overallRemarks
           }
@@ -2598,7 +2602,7 @@
         return;
       }
 
-      await executeReportSave(usedPartsList, { reporter, companions, customer, reportDetailsObj, overallRemarks });
+      await executeReportSave(usedPartsList, moveUsageMap, { reporter, companions, customer, reportDetailsObj, overallRemarks });
     }
 
     function showNextDefectReplenishModal() {
@@ -2614,7 +2618,7 @@
             document.getElementById('minusConfirmModal').style.display = 'flex';
             return;
           }
-          executeReportSave(pendingReportSaveData.usedPartsList, pendingReportSaveData.reportLogParamsData);
+          executeReportSave(pendingReportSaveData.usedPartsList, pendingReportSaveData.moveUsageMap, pendingReportSaveData.reportLogParamsData);
         }
         return;
       }
@@ -2660,22 +2664,46 @@
 
     async function confirmMinusAndProceed() {
       if (!pendingReportSaveData) return;
-      const { usedPartsList, reportLogParamsData } = pendingReportSaveData;
+      const { usedPartsList, moveUsageMap, reportLogParamsData } = pendingReportSaveData;
       closeMinusConfirmModal();
-      await executeReportSave(usedPartsList, reportLogParamsData);
+      await executeReportSave(usedPartsList, moveUsageMap, reportLogParamsData);
     }
 
-    async function executeReportSave(usedPartsList, paramsData) {
+    async function executeReportSave(usedPartsList, moveUsageMap, paramsData) {
       showLoading("作業報告・ログを保存中...");
       try {
         if (usedPartsList.length > 0) {
           for (let item of usedPartsList) {
-            if (item.source !== 'TEMP__PURCHASED') {
+            if (item.source !== 'TEMP__PURCHASED' && !item.source.startsWith('MOVE__')) {
               let partId = item.name.split(' ')[0];
               const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === item.name);
               if (found) {
                 await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(item.source)}&qtyDelta=-${item.qty}`);
               }
+            }
+          }
+        }
+
+        // 移動部品の消化処理 & 未使用分の算出
+        let unusedItemsToAllocate = [];
+        for (let key in moveUsageMap) {
+          const partsArr = key.split('____');
+          const moveId = partsArr[0].replace('MOVE__', '');
+          const partFull = partsArr[1];
+          const usedQty = moveUsageMap[key];
+
+          const moveObj = pendingMoves.find(m => m.id === moveId);
+          if (moveObj) {
+            let itemsParsed = [];
+            try { itemsParsed = JSON.parse(moveObj.itemsJson); } catch(e){}
+            const matchedItem = itemsParsed.find(i => i.part === partFull);
+            if (matchedItem) {
+              const diff = matchedItem.qty - usedQty;
+              if (diff > 0) {
+                unusedItemsToAllocate.push({ part: partFull, unusedQty: diff, receiver: moveObj.receiver });
+              }
+              // 移動ステータスをprocessedに更新
+              await updatePendingStatus(moveId, 'processed');
             }
           }
         }
@@ -2698,8 +2726,8 @@
         localStorage.removeItem('draft_report');
         alert(`📋 作業報告の文章をコピーし、専用の作業報告ログに記録しました！`);
 
-        if (currentUnusedData && currentUnusedData.items && currentUnusedData.items.length > 0) {
-          openUnusedModal(currentUnusedData);
+        if (unusedItemsToAllocate.length > 0) {
+          openUnusedModalForMultiple(unusedItemsToAllocate);
         } else {
           await fetchAllDataFromGAS();
         }
@@ -2708,7 +2736,7 @@
       }
     }
 
-    function openUnusedModal(moveData) {
+    function openUnusedModalForMultiple(unusedList) {
       const container = document.getElementById('unusedItemsFormContainer');
       container.innerHTML = '';
 
@@ -2716,60 +2744,79 @@
       let activeCompanions = [reporter];
       document.querySelectorAll('#repCompanions input:checked').forEach(el => activeCompanions.push(el.value));
 
-      const defaultReceiver = activeCompanions.includes(moveData.receiver) ? moveData.receiver : activeCompanions[0];
-
-      moveData.items.forEach((item, index) => {
-        const div = document.createElement('div');
-        div.style.cssText = "margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:8px;";
-        div.innerHTML = `
-          <div><b>${item.part}</b> (依頼数量: ${item.qty})</div>
-          <div style="display:flex; gap:6px; margin-top:4px;">
-            <div style="flex:1;">
-              <label style="font-size:0.75rem;">未使用数量</label>
-              <input type="number" min="0" max="${item.qty}" value="0" class="unused-qty" data-index="${index}" style="padding:4px;">
-            </div>
-            <div style="flex:1;">
-              <label style="font-size:0.75rem;">移動先メンバー</label>
-              <select class="unused-user" data-index="${index}" style="padding:4px;">
-                ${activeCompanions.map(m => `<option value="${m}" ${m===defaultReceiver?'selected':''}>${m}</option>`).join('')}
-              </select>
-            </div>
-          </div>
+      unusedList.forEach((item, idx) => {
+        const itemBox = document.createElement('div');
+        itemBox.style.cssText = "margin-bottom:12px; border:1px solid #ddd; padding:8px; border-radius:6px; background:#fafafa;";
+        itemBox.innerHTML = `
+          <div style="font-weight:bold; font-size:0.9rem; color:#d9534f; margin-bottom:4px;">${item.part} (未使用の余り数: ${item.unusedQty}個)</div>
+          <div id="unusedRowsContainer-${idx}"></div>
+          <button class="btn btn-secondary btn-sm" style="margin-top:4px;" onclick="addUnusedRow(${idx}, '${item.part}', ${item.unusedQty}, '${item.receiver}')">＋ 配分先メンバーを追加</button>
         `;
-        container.appendChild(div);
+        container.appendChild(itemBox);
+        addUnusedRow(idx, item.part, item.unusedQty, item.receiver);
       });
 
       document.getElementById('unusedModal').style.display = 'flex';
     }
 
+    function addUnusedRow(idx, partName, defaultQty, defaultUser) {
+      const container = document.getElementById(`unusedRowsContainer-${idx}`);
+      const row = document.createElement('div');
+      row.className = 'dynamic-row';
+      row.style.marginBottom = '4px';
+
+      const reporter = document.getElementById('repReporter').value;
+      let activeCompanions = [reporter];
+      document.querySelectorAll('#repCompanions input:checked').forEach(el => activeCompanions.push(el.value));
+
+      row.innerHTML = `
+        <select class="unused-user" style="flex:2;" data-part="${partName}">
+          ${ALL_TARGETS.filter(t=>t!=='大阪事務所').map(m => `<option value="${m}" ${m===defaultUser?'selected':''}>${m}</option>`).join('')}
+          <option value="大阪事務所">大阪事務所</option>
+        </select>
+        <input type="number" min="1" max="${defaultQty}" value="${defaultQty}" class="unused-qty" style="flex:1;" data-part="${partName}">
+        <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">削除</button>
+      `;
+      container.appendChild(row);
+    }
+
     function closeUnusedModal() {
       document.getElementById('unusedModal').style.display = 'none';
-      currentUnusedData = null;
+      fetchAllDataFromGAS();
     }
 
     async function submitUnusedItemsAllocation() {
-      if (!currentUnusedData) return;
+      const itemBoxes = document.querySelectorAll('#unusedItemsFormContainer > div');
+      let allocations = [];
 
-      const qtyInputs = document.querySelectorAll('.unused-qty');
-      const userSelects = document.querySelectorAll('.unused-user');
+      for (let box of itemBoxes) {
+        const rows = box.querySelectorAll('.dynamic-row');
+        let totalAssigned = 0;
+        let boxPartName = '';
 
-      showLoading("未使用部品を加算中...");
+        rows.forEach(r => {
+          const user = r.querySelector('.unused-user').value;
+          const qty = Number(r.querySelector('.unused-qty').value || 0);
+          const partName = r.querySelector('.unused-user').dataset.part;
+          boxPartName = partName;
+          totalAssigned += qty;
+          allocations.push({ part: partName, user, qty });
+        });
+      }
+
+      showLoading("未使用部品を個人在庫へ分配中...");
       try {
-        for (let i = 0; i < qtyInputs.length; i++) {
-          const unusedQty = Number(qtyInputs[i].value);
-          const targetUser = userSelects[i].value;
-          const partName = currentUnusedData.items[i].part;
-
-          if (unusedQty > 0) {
-            let partId = partName.split(' ')[0];
-            const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === partName);
+        for (let alloc of allocations) {
+          if (alloc.qty > 0) {
+            let partId = alloc.part.split(' ')[0];
+            const found = globalPartsData.find(p => p.id === partId || `${p.id} ${p.name}` === alloc.part);
             if (found) {
-              await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(targetUser)}&qtyDelta=${unusedQty}`);
+              await fetch(GAS_API_URL + `?action=updateStock&partId=${encodeURIComponent(found.id)}&user=${encodeURIComponent(alloc.user)}&qtyDelta=${alloc.qty}`);
             }
           }
         }
 
-        alert("✅ 未使用部品を指定されたメンバーの個人在庫に移動しました！");
+        alert("✅ 未使用分の部品を指定されたメンバーの個人在庫へそれぞれ分配加算しました！");
         closeUnusedModal();
         await fetchAllDataFromGAS();
       } finally {
