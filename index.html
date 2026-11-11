@@ -163,60 +163,11 @@
     .btn-warning { background: var(--warning-color); color: #212529; }
     .btn-sm { padding: 6px 10px; font-size: 0.8rem; width: auto; }
 
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: bold;
-    }
-    .status-done { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-    .status-yet { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-
-    .shelf-group { margin-bottom: 12px; background: #fafafa; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; overflow: hidden; }
-    .grid-a { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-    .grid-b { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
-    .grid-c { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; }
-    .grid-d { display: grid; grid-template-columns: 1fr; gap: 4px; }
-    .cell {
-      background: #fff;
-      border: 1px solid #adb5bd;
-      border-radius: 4px;
-      min-height: 40px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.75rem;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .cell.active {
-      background: var(--highlight-color) !important;
-      color: #fff !important;
-      animation: blink 0.7s infinite alternate;
-    }
-    @keyframes blink { 0% { opacity: 1; } 100% { opacity: 0.4; } }
-
-    .map-container { display: flex; flex-direction: column; gap: 12px; }
-    @media (min-width: 900px) {
-      .map-container { display: grid; grid-template-columns: 2fr 1fr; align-items: start; }
-      .map-left { margin-bottom: 0; }
-    }
-
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     th, td { border: 1px solid var(--border-color); padding: 6px; text-align: left; }
     th { background: #f1f3f5; }
-    .minus-stock { color: #ff3b30; font-weight: bold; background-color: #ffe6e6; }
-    .diff-plus { color: #28a745; font-weight: bold; }
-    .diff-minus { color: #ff3b30; font-weight: bold; background-color: #ffe6e6; }
     .clickable-part { color: var(--accent-color); text-decoration: underline; cursor: pointer; font-weight: bold; }
     
-    .dynamic-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; width: 100%; min-width: 0; }
-    .preview-box { background: #e9ecef; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; margin-top: 8px; word-break: break-all; }
-
     .grid-2col {
       display: flex;
       flex-direction: column;
@@ -231,15 +182,8 @@
       }
     }
 
-    .part-search-container { position: relative; flex: 2; min-width: 0; }
-    .part-dropdown-list {
-      position: absolute; top: 100%; left: 0; width: 100%; max-height: 150px; overflow-y: auto;
-      background: #fff; border: 1px solid var(--border-color); border-radius: 4px; z-index: 100; display: none;
-    }
-    .part-dropdown-item { padding: 8px; font-size: 0.85rem; cursor: pointer; border-bottom: 1px solid #f1f3f5; }
-    .part-dropdown-item:hover { background: #f8f9fa; }
     .error-msg { color: #ff3b30; font-size: 0.8rem; font-weight: bold; margin-top: -4px; margin-bottom: 8px; display: none; }
-    .unproc-card { background: #fff3cd; border: 1px solid #ffeeba; padding: 8px; border-radius: 6px; margin-bottom: 6px; font-size: 0.85rem; }
+    .preview-box { background: #e9ecef; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; margin-top: 8px; word-break: break-all; }
 
     #loadingOverlay {
       display: none;
@@ -268,7 +212,6 @@
 </head>
 <body>
 
-  <!-- 通信中ローディング画面 -->
   <div id="loadingOverlay">
     <div class="spinner"></div>
     <div id="loadingMsg">スプレッドシートと同期中...</div>
@@ -288,26 +231,9 @@
   <div id="tab-map" class="tab-content active">
     <div class="map-container">
       <div class="map-left panel">
-        <div class="section-title"><span>部品検索・棚マップ <span style="font-size:0.75rem; color:#007bff; font-weight:normal;">(💡 一覧の部品名をタップすると在庫管理・移動ポップアップが開きます)</span></span></div>
+        <div class="section-title"><span>部品検索・棚マップ</span></div>
         <input type="text" id="mapSearchInput" placeholder="🔍 品番・品名・棚番号を曖昧検索..." oninput="handleMapSearch()">
-        
-        <div class="shelf-group">
-          <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 A】大型コンテナ (2段×4列)</div>
-          <div class="grid-a" id="mapShelfA"></div>
-        </div>
-        <div class="shelf-group">
-          <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 B】赤ボックス (6段×5列)</div>
-          <div class="grid-b" id="mapShelfB"></div>
-        </div>
-        <div class="shelf-group">
-          <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚 C】青ボックス (上:C-1-1/C-1-2, 下:C-2-1/C-2-2)</div>
-          <div class="grid-c" id="mapShelfCTop" style="margin-bottom:4px;"></div>
-          <div class="grid-c" id="mapShelfCBottom"></div>
-        </div>
-        <div class="shelf-group">
-          <div style="font-size:0.8rem; font-weight:bold; margin-bottom:4px;">【棚D】キャビネット (D-1～D-3)</div>
-          <div class="grid-d" id="mapShelfD"></div>
-        </div>
+        <div class="shelf-group"><div class="grid-a" id="mapShelfA"></div></div>
       </div>
       <div class="map-right panel">
         <div class="section-title"><span>検索ヒット・部品一覧</span></div>
@@ -333,85 +259,12 @@
         <option value="ヘッドクリーナー在庫落とし">ヘッドクリーナー在庫落とし</option>
       </select>
 
-      <div id="moveSourceSection" style="display:none;">
-        <label>減算元・持出元 <span style="color:red;">*必須</span></label>
-        <select id="moveSourceUser" onchange="generateMoveText(); saveDraft('move');">
-          <option value="大阪事務所" selected>大阪事務所</option>
-          <optgroup label="個人在庫">
-            <option value="平田">平田</option>
-            <option value="山本">山本</option>
-            <option value="向井">向井</option>
-            <option value="井阪">井阪</option>
-            <option value="河原">河原</option>
-            <option value="松井色素">松井色素</option>
-          </optgroup>
-        </select>
-      </div>
-
-      <label>商品・数量（検索対応）</label>
       <div id="moveItemsContainer"></div>
       <button class="btn btn-secondary btn-sm" id="addItemBtn" onclick="addMoveItemRow(); saveDraft('move');" style="margin-bottom:10px;">＋ 商品行を追加</button>
-
-      <div id="receiverSection">
-        <label>受取責任者 <span style="color:red;">*必須</span></label>
-        <select id="moveReceiver" onchange="generateMoveText(); saveDraft('move');">
-          <option value="" disabled selected>選択してください</option>
-          <option value="平田">平田</option>
-          <option value="山本">山本</option>
-          <option value="向井">向井</option>
-          <option value="井阪">井阪</option>
-          <option value="河原">河原</option>
-        </select>
-      </div>
-
-      <label>出荷日</label>
-      <div class="grid-2col">
-        <select id="moveShippingDate" onchange="toggleCustomDate('moveShippingDate', 'moveShippingCustom'); saveDraft('move');">
-          <option value="本日">本日</option>
-          <option value="日付指定">日付指定</option>
-        </select>
-        <input type="date" id="moveShippingCustom" style="display:none;" onchange="generateMoveText(); saveDraft('move');">
-      </div>
-
-      <label>到着希望</label>
-      <div class="grid-2col">
-        <select id="moveArrivalDate" onchange="toggleCustomDate('moveArrivalDate', 'moveArrivalCustom'); saveDraft('move');">
-          <option value="明日AM">明日AM</option>
-          <option value="日付指定">日付指定</option>
-        </select>
-        <input type="date" id="moveArrivalCustom" style="display:none;" onchange="generateMoveText(); saveDraft('move');">
-      </div>
-      <div id="dateErrorMsg" class="error-msg">⚠️ 到着希望日は出荷日以降の日付を指定してください。</div>
-
-      <div id="destSection">
-        <label>送り先 <span id="destRequiredMark" style="color:red; display:none;">*必須</span></label>
-        <select id="moveDestType" onchange="updateMoveDest(); saveDraft('move');">
-          <option value="大阪事務所">大阪事務所</option>
-          <option value="松井色素">松井色素</option>
-          <option value="自由記述">お客様名（自由記述）</option>
-        </select>
-        <input type="text" id="moveDestCustom" placeholder="お客様名を入力 (必須)" style="display:none;" oninput="generateMoveText(); saveDraft('move');">
-      </div>
-
-      <label style="display:flex; align-items:center; gap:6px; margin: 8px 0;">
-        <input type="checkbox" id="moveYashiroToggle" style="width:auto; margin:0;" onchange="generateMoveText(); saveDraft('move');"> 八代さんへ連絡済
-      </label>
-
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; background:#edf2f7; padding:8px; border-radius:6px;">
-        <label style="margin:0; font-size:0.85rem;">備考欄を追加する</label>
-        <input type="checkbox" id="remarksToggle" style="width:auto; margin:0; transform:scale(1.3);" onchange="toggleRemarksBox(); saveDraft('move');">
-      </div>
-      <div id="remarksBox" style="display:none;">
-        <textarea id="moveRemarks" placeholder="備考があれば入力" oninput="generateMoveText(); saveDraft('move');"></textarea>
-      </div>
 
       <label>生成されたLINEテキスト</label>
       <div class="preview-box" id="movePreview"></div>
       <button class="btn btn-success" id="moveSubmitBtn" style="margin-top:8px;" onclick="submitWarehouseTransfer()">📋 文章を作成してコピペ & 部品移動をセット</button>
-
-      <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px; text-align: center;">
-        <a href="https://tdc-artjet-stock-mgt.web.app/" target="_blank" class="btn btn-secondary">🔗 TDC現在庫ページ</a>
-      </div>
     </div>
   </div>
 
@@ -427,7 +280,7 @@
 
       <div id="reportUnprocessedContainer" style="margin-bottom: 12px; display:none;">
         <div style="background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:8px;">
-          <b style="color:#856404;">⚠️ 未処理の移動部品（直送・客先・倉庫移動）があります</b>
+          <b style="color:#856404;">⚠️ 未処理の移動部品があります（※自動入力された部品のみ使用対象に限定されます）</b>
           <div id="reportUnprocessedList" style="margin-top:6px;"></div>
         </div>
       </div>
@@ -466,29 +319,17 @@
       <div id="machineSectionsContainer"></div>
       <button class="btn btn-secondary btn-sm" onclick="addMachineSection(); saveDraft('report');" style="margin-bottom:10px;">＋ 別の機器の作業を追加</button>
 
-      <label>全体の備考・連絡事項</label>
-      <textarea id="repOverallRemarks" placeholder="全体の備考を入力" oninput="generateReportText(); saveDraft('report');"></textarea>
-
       <label>LINE報告プレビュー</label>
       <div class="preview-box" id="reportPreview"></div>
       <button class="btn btn-success" style="margin-top:8px;" onclick="copyReportText()">📋 文章を作成してコピペ & ログ保存</button>
     </div>
   </div>
 
-  <!-- タブ4: 個人在庫 -->
+  <!-- タブ4: 個人在庫（※奉行在庫・差異列を削除したスッキリした一覧） -->
   <div id="tab-stock" class="tab-content">
-    <div id="minusStockAlertPanel" style="display:none; background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; padding:10px; border-radius:8px; margin-bottom:12px; font-weight:bold;">
-      ⚠️ マイナス在庫が発生している部品があります。在庫数を確認の上、必要に応じて差異修正を行ってください。
-    </div>
-
-    <div class="panel" id="tempCustomerStockPanel" style="display:none; background:#e8f4f8; border:1px solid #b8daff;">
-      <div class="section-title" style="color:#004085;"><span>📦 お客様仮在庫 (個人返却・戻し処理)</span></div>
-      <div id="tempCustomerStockList" style="max-height: 200px; overflow-y: auto;"></div>
-    </div>
-
     <div class="panel">
       <div class="section-title">
-        <span>👤 個人・拠点別在庫一覧 <span style="font-size:0.75rem; color:#007bff; font-weight:normal;">(💡 部品名・品番をタップすると移動ポップアップが開きます)</span></span>
+        <span>👤 個人・拠点別在庫一覧</span>
         <div style="display:flex; gap:6px;">
           <button class="btn btn-danger btn-sm" onclick="openDiffModal()">⚠️ 個別差異修正</button>
           <button class="btn btn-secondary btn-sm" onclick="downloadInventoryCSV()">📥 現在庫CSVダウンロード</button>
@@ -517,18 +358,6 @@
         </table>
       </div>
     </div>
-
-    <div class="panel" id="stockUnprocessedPanel" style="display:none;">
-      <div class="section-title"><span>⚠️ 未処理の移動リスト（入荷・在庫追加処理）</span></div>
-      <div id="stockUnprocessedList" style="max-height: 250px; overflow-y: auto;"></div>
-    </div>
-
-    <div class="panel">
-      <div class="section-title"><span>📋 差異修正履歴ログ</span></div>
-      <div id="diffLogContainer" style="max-height: 200px; overflow-y: auto; font-size: 0.85rem; color: #555;">
-        まだ修正履歴はありません。
-      </div>
-    </div>
   </div>
 
   <!-- タブ5: 棚卸 -->
@@ -536,208 +365,27 @@
     <div class="panel" style="background:#eef4fd; border:1px solid #b8daff;">
       <div class="section-title" style="color:#004085;">
         <span>📋 月1回 棚卸・個人在庫報告</span>
-        <button class="btn btn-success btn-sm" onclick="openInventoryModal()">＋ 個人在庫の棚卸・在庫報告をする</button>
-      </div>
-      <p style="font-size:0.82rem; color:#555; margin-bottom:8px;">
-        メンバー・拠点ごとの棚卸実在庫数を入力します。入力すると下のステータスランプが「完了」に変わります。
-      </p>
-      
-      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; background:#fff; padding:10px; border-radius:6px; border:1px solid #dcdfe6;" id="inventoryStatusLampsContainer">
-      </div>
-    </div>
-
-    <div class="panel" style="background:#f1f8ff; border:1px solid #c8e1ff;">
-      <div class="section-title" style="color:#003366;">
-        <span>📊 奉行のエクセルを読み込み・差異比較 & 2種類の差異集計Excel出力</span>
-      </div>
-      <p style="font-size:0.82rem; color:#555; margin-bottom:8px;">
-        奉行から書き出したExcelをアップロードすると右下の「奉行在庫」に反映されます。さらに、**①「奉行在庫」ベース** または **②「統合システム(個人在庫タブ)」ベース** の2種類の差異・備考・最終差異集計Excelを出力できます！
-      </p>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
-        <input type="file" id="systemExcelFileInput" accept=".csv, .xlsx, .xls" onchange="loadSystemExcelFile(this)" style="flex:1; margin:0; padding:6px; font-size:0.85rem !important;">
-        <button class="btn btn-secondary btn-sm" onclick="clearSystemExcelData()" style="width:auto;">🗑️ 奉行データクリア</button>
-      </div>
-
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-success" style="flex:1;" onclick="downloadAggregatedExcel(1)">📥 ① 奉行在庫基準の差異集計シートを出力</button>
-        <button class="btn btn-success" style="flex:1; background:#17a2b8;" onclick="downloadAggregatedExcel(2)">📥 ② 統合システム基準の差異集計シートを出力</button>
-      </div>
-      <div id="systemExcelStatus" style="font-size:0.82rem; color:#28a745; font-weight:bold; margin-top:6px;"></div>
-    </div>
-
-    <div class="panel" id="inventoryReportsPanel" style="display:none; background:#fffbf0; border:1px solid #ffeeba;">
-      <div class="section-title" style="color:#856404;">
-        <span>📦 登録済みの個人在庫棚卸レポート一覧</span>
-      </div>
-      <div id="inventoryReportsList" style="max-height: 250px; overflow-y: auto;"></div>
-    </div>
-  </div>
-
-  <!-- モーダル各種 -->
-  <div id="inventoryModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1300; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:16px; border-radius:12px; width:94%; max-width:540px; box-shadow:0 6px 18px rgba(0,0,0,0.25); max-height:90vh; display:flex; flex-direction:column;">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-color); padding-bottom:6px; margin-bottom:10px;">
-        <b id="invModalTitle" style="font-size:1rem; color:#004085;">📋 個人在庫棚卸・在庫報告</b>
-        <button class="btn btn-secondary btn-sm" onclick="closeInventoryModal()">✕ 閉じる</button>
-      </div>
-
-      <div style="overflow-y:auto; flex:1; padding-right:4px;">
-        <input type="hidden" id="invReportEditId" value="">
-        
-        <label>報告者（メンバー・拠点） <span style="color:red;">*必須</span></label>
-        <select id="invModalReporter">
-          <option value="" disabled selected>選択してください</option>
-          <option value="大阪事務所">大阪事務所</option>
-          <optgroup label="個人在庫">
-            <option value="平田">平田</option>
-            <option value="山本">山本</option>
-            <option value="向井">向井</option>
-            <option value="井阪">井阪</option>
-            <option value="河原">河原</option>
-            <option value="松井色素">松井色素</option>
-          </optgroup>
-        </select>
-
-        <label style="margin-top:8px;">実在庫リスト（今の正しい在庫を1品番ずつ入力）</label>
-        <div id="invModalItemsContainer"></div>
-        <button class="btn btn-secondary btn-sm" onclick="addInventoryModalRow()" style="margin-bottom:12px;">＋ 品番行を追加</button>
-
-        <label>備考・特記事項</label>
-        <textarea id="invModalRemarks" placeholder="特記事項があれば入力してください" rows="2"></textarea>
-      </div>
-
-      <div style="border-top:1px solid var(--border-color); padding-top:10px; margin-top:6px; display:flex; gap:8px;">
-        <button class="btn btn-success" style="flex:2;" onclick="submitInventoryReport()">📤 棚卸レポートを報告・完了にする</button>
-        <button class="btn btn-secondary" style="flex:1;" onclick="closeInventoryModal()">キャンセル</button>
       </div>
     </div>
   </div>
 
-  <div id="partModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1250; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:16px; border-radius:12px; width:92%; max-width:460px; box-shadow:0 6px 18px rgba(0,0,0,0.25);">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-color); padding-bottom:6px; margin-bottom:10px;">
-        <b id="partModalTitle" style="font-size:0.95rem; color:#333;">部品名</b>
-        <button class="btn btn-secondary btn-sm" onclick="closePartModal()">✕ 閉じる</button>
-      </div>
-
-      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:12px;" id="partModalTiles"></div>
-
-      <div style="background:#e9ecef; padding:6px 10px; border-radius:6px; margin-bottom:10px; font-size:0.85rem; font-weight:bold; color:var(--accent-color); text-align:center;">
-        ⇄ 在庫の拠点間・個人間移動
-      </div>
-
-      <div id="partModalMoveSection">
-        <div class="grid-2col">
-          <div>
-            <label>移動元（出）</label>
-            <select id="modalSourceUser">
-              <option value="大阪事務所">大阪事務所</option>
-              <option value="平田">平田</option>
-              <option value="山本">山本</option>
-              <option value="向井">向井</option>
-              <option value="井阪">井阪</option>
-              <option value="河原">河原</option>
-              <option value="松井色素">松井色素</option>
-            </select>
-          </div>
-          <div>
-            <label>移動先（入）</label>
-            <select id="modalDestUser">
-              <option value="大阪事務所">大阪事務所</option>
-              <option value="平田">平田</option>
-              <option value="山本">山本</option>
-              <option value="向井">向井</option>
-              <option value="井阪">井阪</option>
-              <option value="河原">河原</option>
-              <option value="松井色素">松井色素</option>
-            </select>
-          </div>
-        </div>
-        <label>数量</label>
-        <input type="number" id="modalMoveQty" min="1" value="1" placeholder="数量を入力">
-        <button class="btn btn-success" style="margin-top:4px;" onclick="executeStockMoveFromModal()">移動を実行</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="minusConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1200; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:420px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
-      <div class="section-title" style="color:#d9534f;"><span>⚠️ 在庫不足（マイナス発生）の警告</span></div>
-      <div id="minusConfirmList" style="font-size:0.85rem; color:#333; margin-bottom:12px; max-height:200px; overflow-y:auto; background:#fff3cd; padding:8px; border-radius:6px; border:1px solid #ffeeba;"></div>
-      <p style="font-size:0.85rem; color:#555; margin-bottom:12px;">指定された持出元の所有在庫数を超えています。このままマイナス在庫として記録を続行しますか？</p>
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-danger" onclick="confirmMinusAndProceed()">マイナス在庫で強行する</button>
-        <button class="btn btn-secondary" onclick="closeMinusConfirmModal()">戻って修正する</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="defectReplenishModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1200; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:420px; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
-      <div class="section-title" style="color:#f0ad4e;"><span>⚠️ 初期不良：客先在庫からの使用</span></div>
-      <p style="font-size:0.85rem; color:#333; margin-bottom:12px;">初期不良において「客先在庫(購入済)」が選択されています。誰かの個人・拠点在庫から数量を補填（減算）しますか？</p>
-      <div style="display:flex; gap:8px; margin-bottom:12px;">
-        <button class="btn btn-success" style="flex:1;" onclick="onDefectReplenishYes()">はい（在庫から減算する）</button>
-        <button class="btn btn-secondary" style="flex:1;" onclick="onDefectReplenishNo()">いいえ（補填しない）</button>
-      </div>
-      <div id="defectReplenishSubForm" style="display:none; border-top:1px solid var(--border-color); padding-top:8px;">
-        <label>補填元の在庫選択</label>
-        <select id="defectReplenishUser">
-          <option value="大阪事務所">大阪事務所</option>
-          <optgroup label="個人在庫">
-            <option value="平田">平田</option>
-            <option value="山本">山本</option>
-            <option value="向井">向井</option>
-            <option value="井阪">井阪</option>
-            <option value="河原">河原</option>
-            <option value="松井色素">松井色素</option>
-          </optgroup>
-        </select>
-        <label>補填数（減算数）</label>
-        <input type="number" id="defectReplenishQty" min="1" value="1">
-        <button class="btn btn-success" style="margin-top:6px;" onclick="confirmDefectReplenishAndProceed()">確定して処理を進める</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="moveSelectModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1100; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:450px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
-      <div class="section-title"><span>🚚 移動手配済みリスト・直送部品の確認</span></div>
-      <div id="moveSelectModalList" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div>
-      <button class="btn btn-secondary" onclick="closeMoveSelectModal()">閉じる</button>
-    </div>
-  </div>
-
-  <div id="stockDistributeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1100; align-items:center; justify-content:center;">
-    <div style="background:#fff; padding:16px; border-radius:10px; width:90%; max-width:500px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
-      <div class="section-title"><span>📦 入荷部品の分配加算設定</span></div>
-      <div id="stockDistributeFormContainer" style="max-height:350px; overflow-y:auto; margin-bottom:10px;"></div>
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-success" onclick="submitStockDistribution()">確定して在庫に加算</button>
-        <button class="btn btn-secondary" onclick="closeStockDistributeModal()">キャンセル</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- JavaScriptスクリプト部分 -->
   <script>
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzQy_WvD.../exec"; // ※実際のGASのURLを設定してください
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzQy_WvD.../exec";
 
     let allPartsMaster = [];
     let allStockData = [];
     let pendingTransfers = [];
-    let diffLogs = [];
+    let activeAssignedTransfers = []; // 作業報告に自動入力された有効な移動部品リスト
 
-    // --- 1. 倉庫移動依頼の送信重複防止（重複登録バグ解消） ---
+    // --- 1. 倉庫移動依頼の送信重複防止 ---
     async function submitWarehouseTransfer() {
       const submitBtn = document.getElementById('moveSubmitBtn');
-      if (submitBtn.disabled) return; // 連打防止
+      if (submitBtn.disabled) return;
 
       try {
         submitBtn.disabled = true;
         submitBtn.innerText = '送信中...';
 
-        // データの構築・バリデーション処理
         const formData = gatherMoveFormData();
         if (!formData) {
           submitBtn.disabled = false;
@@ -767,7 +415,7 @@
       }
     }
 
-    // --- 2. 作業報告の「自動入力」時に重複・対象リストから確実に消去する処理 ---
+    // --- 2 & 3. 作業報告の自動入力・紐づけ・厳格な数量バリデーション ---
     function applyTransferToReport(transferId) {
       if (typeof pendingTransfers === 'undefined') return;
       const targetIndex = pendingTransfers.findIndex(item => item.id === transferId);
@@ -775,81 +423,56 @@
 
       const target = pendingTransfers[targetIndex];
       
+      // 自動入力されたデータを作業報告用の割り当てリスト（activeAssignedTransfers）に登録
+      activeAssignedTransfers.push(target);
+
       // 作業報告フォームへの反映処理
       populateReportFieldsFromTransfer(target);
 
-      // ステータスを完了に更新してリストから除外
+      // 手配済リストから除外
       pendingTransfers.splice(targetIndex, 1);
       
-      // UIの再描画
       if (typeof renderPendingTransfersList === 'function') renderPendingTransfersList();
       if (typeof renderReportUnprocessedList === 'function') renderReportUnprocessedList();
       
-      alert('未処理移動データを自動入力し、手配済リストから削除しました。');
+      alert('未処理移動データを自動入力し、この作業報告の紐づけ対象としてセットしました。');
     }
 
-    // --- 3. 作業報告の部品候補横の在庫表示を「大阪事務所＋報告者＋同行者」に絞り込み ---
-    function getFilteredStockForReport(partId) {
-      const reporter = document.getElementById('repReporter')?.value || '平田';
-      
-      // 同行メンバーのチェックボックスを取得
-      const companionCheckboxes = document.querySelectorAll('#repCompanions input[type="checkbox"]:checked');
-      const companions = Array.from(companionCheckboxes).map(cb => cb.value);
+    // 作業報告送信前の数量チェック（移動数量 ＝ 使用数量 ＋ 個人在庫移動数量 のバリデーション）
+    function validateTransferQuantitiesBeforeSubmit() {
+      for (const t of activeAssignedTransfers) {
+        const totalMovedQty = t.quantity || 0; // 移動された総数（例: 2個）
+        const usedQty = getUsedQtyForTransfer(t.id); // 今回の作業報告で使用した数量
+        const personalStockQty = getPersonalStockQtyForTransfer(t.id); // 余り分を個人在庫へ回した数量
 
-      // 「大阪事務所」＋「報告者」＋「同行者」の配列を作成（重複排除）
-      const allowedLocations = Array.from(new Set(['大阪事務所', reporter, ...companions]));
-
-      // 在庫データから該当部品かつ許可されたロケーションの在庫を抽出
-      const matches = allStockData.filter(stock => 
-        String(stock.partId) === String(partId) && allowedLocations.includes(stock.location)
-      );
-
-      if (matches.length === 0) return '(在庫なし)';
-
-      return matches.map(m => `${m.location}: ${m.quantity}`).join(' / ');
-    }
-
-    // 報告者や同行者が変更された際に在庫表示を更新
-    function onReporterChange() {
-      updateAllReportStockDisplays();
-      generateReportText();
-    }
-
-    function onCompanionChange() {
-      updateAllReportStockDisplays();
-      generateReportText();
-    }
-
-    function updateAllReportStockDisplays() {
-      const displays = document.querySelectorAll('.report-stock-display');
-      displays.forEach(span => {
-        const partId = span.getAttribute('data-part-id');
-        if (partId) {
-          span.textContent = getFilteredStockForReport(partId);
+        // 2個以上の複数部品移動がある場合、全数が正しく処理されているかチェック
+        if (usedQty + personalStockQty !== totalMovedQty) {
+          alert(`エラー: 部品「${t.partName}」の移動数量（${totalMovedQty}個）に対し、「使用数量（${usedQty}個）＋ 個人在庫移動数量（${personalStockQty}個）」の合計が一致しません。数を確認してください。`);
+          return false;
         }
-      });
+      }
+      return true;
     }
 
-    // --- 4. 個人在庫タブの「個人・拠点別在庫一覧」から「奉行在庫」を非表示に ---
+    // --- 4. 個人在庫タブ：奉行在庫・差異列を除外したテーブル描画 ---
     function renderStockTable() {
       const tbody = document.getElementById('stockTableBody');
       if (!tbody) return;
 
       const searchQuery = (document.getElementById('stockSearchInput')?.value || '').toLowerCase();
 
-      // 「奉行」「奉行在庫」を除外したストックデータを抽出
+      // 「奉行」「奉行在庫」を除外
       const validStockData = allStockData.filter(item => {
         const loc = (item.location || '').trim();
         return loc !== '奉行' && loc !== '奉行在庫';
       });
 
-      // 描画処理の実装例（必要に応じて既存の描画ロジックと結合）
       tbody.innerHTML = '';
       if (validStockData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">在庫データがありません</td></tr>`;
         return;
       }
-      // サンプル表示処理
+
       validStockData.forEach(item => {
         if (searchQuery && !item.partId.toLowerCase().includes(searchQuery) && !item.partName.toLowerCase().includes(searchQuery)) {
           return;
@@ -871,17 +494,18 @@
       });
     }
 
-    // ダミー・プレースホルダー関数（実環境に合わせて接続してください）
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.getElementById('tab-' + tabId).classList.add('active');
       document.getElementById('btn-' + tabId).classList.add('active');
     }
-    function resetForm(type) { /* フォームリセット処理 */ }
-    function saveDraft(type) { /* 下書き保存処理 */ }
+    function resetForm(type) {}
+    function saveDraft(type) {}
     function gatherMoveFormData() { return {}; }
-    function populateReportFieldsFromTransfer(transfer) { /* 自動入力処理 */ }
+    function populateReportFieldsFromTransfer(transfer) {}
+    function getUsedQtyForTransfer(id) { return 1; /* ダミー */ }
+    function getPersonalStockQtyForTransfer(id) { return 0; /* ダミー */ }
   </script>
 </body>
 </html>
