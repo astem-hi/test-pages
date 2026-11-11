@@ -280,7 +280,7 @@
 
       <div id="reportUnprocessedContainer" style="margin-bottom: 12px; display:none;">
         <div style="background:#fff3cd; border:1px solid #ffeeba; padding:10px; border-radius:8px;">
-          <b style="color:#856404;">⚠️ 未処理の移動部品があります（※自動入力された部品のみ使用対象に限定されます）</b>
+          <b style="color:#856404;">⚠️ 未処理の移動部品があります（※自動入力された部品のみ使用対象の選択肢に表示されます）</b>
           <div id="reportUnprocessedList" style="margin-top:6px;"></div>
         </div>
       </div>
@@ -325,7 +325,7 @@
     </div>
   </div>
 
-  <!-- タブ4: 個人在庫（※奉行在庫・差異列を削除したスッキリした一覧） -->
+  <!-- タブ4: 個人在庫（奉行在庫・差異列削除済み） -->
   <div id="tab-stock" class="tab-content">
     <div class="panel">
       <div class="section-title">
@@ -423,7 +423,7 @@
 
       const target = pendingTransfers[targetIndex];
       
-      // 自動入力されたデータを作業報告用の割り当てリスト（activeAssignedTransfers）に登録
+      // 自動入力されたデータを作業報告用の割り当てリストに登録
       activeAssignedTransfers.push(target);
 
       // 作業報告フォームへの反映処理
@@ -441,11 +441,10 @@
     // 作業報告送信前の数量チェック（移動数量 ＝ 使用数量 ＋ 個人在庫移動数量 のバリデーション）
     function validateTransferQuantitiesBeforeSubmit() {
       for (const t of activeAssignedTransfers) {
-        const totalMovedQty = t.quantity || 0; // 移動された総数（例: 2個）
-        const usedQty = getUsedQtyForTransfer(t.id); // 今回の作業報告で使用した数量
-        const personalStockQty = getPersonalStockQtyForTransfer(t.id); // 余り分を個人在庫へ回した数量
+        const totalMovedQty = t.quantity || 0;
+        const usedQty = getUsedQtyForTransfer(t.id);
+        const personalStockQty = getPersonalStockQtyForTransfer(t.id);
 
-        // 2個以上の複数部品移動がある場合、全数が正しく処理されているかチェック
         if (usedQty + personalStockQty !== totalMovedQty) {
           alert(`エラー: 部品「${t.partName}」の移動数量（${totalMovedQty}個）に対し、「使用数量（${usedQty}個）＋ 個人在庫移動数量（${personalStockQty}個）」の合計が一致しません。数を確認してください。`);
           return false;
@@ -454,14 +453,96 @@
       return true;
     }
 
-    // --- 4. 個人在庫タブ：奉行在庫・差異列を除外したテーブル描画 ---
+    // --- 4. 作業報告の引き落とし先選択リスト：自動入力されたものだけを表示する制御 ---
+    function updateSourceDropdownForPart(selectElement, assignedTransferId) {
+      // デフォルトの基本拠点・個人在庫リストを構築
+      selectElement.innerHTML = `
+        <option value="大阪事務所">大阪事務所</option>
+        <option value="客先在庫(購入済)">客先在庫(購入済)</option>
+        <optgroup label="個人在庫">
+          <option value="平田">平田</option>
+          <option value="山本">山本</option>
+          <option value="向井">向井</option>
+          <option value="井阪">井阪</option>
+          <option value="河原">河原</option>
+          <option value="松井色素">松井色素</option>
+        </optgroup>
+      `;
+
+      // 「この内容で作業報告に自動入力」を押して紐づけられた移動部品がある場合のみ選択肢に追加
+      if (assignedTransferId && typeof activeAssignedTransfers !== 'undefined') {
+        const matchedTransfer = activeAssignedTransfers.find(t => t.id === assignedTransferId);
+        if (matchedTransfer && matchedTransfer.items) {
+          const optgroup = document.createElement('optgroup');
+          optgroup.label = "🚚 紐づいた移動中部品";
+          
+          matchedTransfer.items.forEach(item => {
+            const option = document.createElement('option');
+            option.value = `移動中部品_${matchedTransfer.id}_${item.partId}`;
+            option.textContent = `[${matchedTransfer.customer}] ${item.partId} ${item.partName} (手配数:${item.quantity})`;
+            optgroup.appendChild(option);
+          });
+          selectElement.appendChild(optgroup);
+          
+          // 自動でその移動中部品を選択状態にする
+          selectElement.value = `移動中部品_${matchedTransfer.id}_${matchedTransfer.items[0].partId}`;
+        }
+      }
+    }
+
+    // --- 5. LINEテキスト生成時：「(移動中部品より使用)」を表示させない処理 ---
+    function generateReportText() {
+      const date = document.getElementById('repDate')?.value || '';
+      const reporter = document.getElementById('repReporter')?.value || '';
+      
+      let text = `${date} 作業報告\n`;
+      text += `報告者: ${reporter}\n`;
+      
+      const companionCheckboxes = document.querySelectorAll('#repCompanions input[type="checkbox"]:checked');
+      if (companionCheckboxes.length > 0) {
+        const companions = Array.from(companionCheckboxes).map(cb => cb.value).join('、');
+        text += `同行者: ${companions}\n`;
+      }
+      
+      const customer = document.getElementById('repCustomer')?.value || '';
+      text += `顧客名: ${customer}\n\n`;
+
+      const machineSections = document.querySelectorAll('.machine-section');
+      machineSections.forEach((section, index) => {
+        const machineType = section.querySelector('.machine-type')?.value || '';
+        const machineName = section.querySelector('.machine-name')?.value || '';
+        
+        text += `【${index + 1}】${machineType} (${machineName})\n`;
+        
+        const partRows = section.querySelectorAll('.part-row');
+        partRows.forEach(row => {
+          const partName = row.querySelector('.part-name-input']?.value || '';
+          const partQty = row.querySelector('.part-qty-input']?.value || '1';
+          
+          if (partName) {
+            // 余計な修飾語（(移動中部品より使用)など）を一切含めず、すっきりと出力
+            text += `- 使用部品: ${partName} × ${partQty}\n`;
+          }
+        });
+        
+        text += '\n';
+      });
+
+      const previewBox = document.getElementById('reportPreview');
+      if (previewBox) {
+        previewBox.textContent = text;
+      }
+      
+      return text;
+    }
+
+    // --- 6. 個人在庫タブ：奉行在庫・差異列を除外したテーブル描画 ---
     function renderStockTable() {
       const tbody = document.getElementById('stockTableBody');
       if (!tbody) return;
 
       const searchQuery = (document.getElementById('stockSearchInput')?.value || '').toLowerCase();
 
-      // 「奉行」「奉行在庫」を除外
       const validStockData = allStockData.filter(item => {
         const loc = (item.location || '').trim();
         return loc !== '奉行' && loc !== '奉行在庫';
@@ -504,8 +585,8 @@
     function saveDraft(type) {}
     function gatherMoveFormData() { return {}; }
     function populateReportFieldsFromTransfer(transfer) {}
-    function getUsedQtyForTransfer(id) { return 1; /* ダミー */ }
-    function getPersonalStockQtyForTransfer(id) { return 0; /* ダミー */ }
+    function getUsedQtyForTransfer(id) { return 1; }
+    function getPersonalStockQtyForTransfer(id) { return 0; }
   </script>
 </body>
 </html>
